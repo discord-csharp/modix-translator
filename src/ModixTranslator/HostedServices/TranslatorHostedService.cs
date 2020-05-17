@@ -2,6 +2,8 @@
 using Discord.WebSocket;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using ModixTranslator.Behaviors;
+using ModixTranslator.Models.Translator;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -9,21 +11,21 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace TranslatorBot9000
+namespace ModixTranslator.HostedServices
 {
-    public interface ILocalizerHostedService : IHostedService
+    public interface ITranslatorHostedService : IHostedService
     {
         Task<ChannelPair?> GetOrCreateChannelPair(SocketGuild guild, string lang);
     }
 
-    public class LocalizerHostedService : ILocalizerHostedService
+    public class TranslatorHostedService : ITranslatorHostedService
     {
-        private readonly ILogger<LocalizerHostedService> _logger;
+        private readonly ILogger<TranslatorHostedService> _logger;
         private readonly ITranslationService _translation;
         private readonly IBotService _bot;
         private readonly ConcurrentDictionary<string, ChannelPair> _channelPairs = new ConcurrentDictionary<string, ChannelPair>();
 
-        public LocalizerHostedService(ILogger<LocalizerHostedService> logger, ITranslationService translationService, IBotService bot)
+        public TranslatorHostedService(ILogger<TranslatorHostedService> logger, ITranslationService translationService, IBotService bot)
         {
             _logger = logger;
             _translation = translationService;
@@ -38,10 +40,10 @@ namespace TranslatorBot9000
                 return pair;
             }
 
-            var category = guild.CategoryChannels.SingleOrDefault(a => a.Name == LocalizationConstants.CategoryName);
+            var category = guild.CategoryChannels.SingleOrDefault(a => a.Name == TranslationConstants.CategoryName);
             if (category == default)
             {
-                throw new InvalidOperationException($"The channel category {LocalizationConstants.CategoryName} does not exist");
+                throw new InvalidOperationException($"The channel category {TranslationConstants.CategoryName} does not exist");
             }
 
             var supportedLang = await _translation.IsLangSupported(lang);
@@ -112,7 +114,7 @@ namespace TranslatorBot9000
                 return Task.CompletedTask;
             }
 
-            if (messageChannel.Category.Name != LocalizationConstants.CategoryName)
+            if (messageChannel.Category.Name != TranslationConstants.CategoryName)
             {
                 return Task.CompletedTask;
             }
@@ -143,12 +145,12 @@ namespace TranslatorBot9000
                 return Task.CompletedTask;
             }
 
-            if (messageChannel.Category.Name != LocalizationConstants.CategoryName)
+            if (messageChannel.Category.Name != TranslationConstants.CategoryName)
             {
                 return Task.CompletedTask;
             }
 
-            if (LocalizationConstants.PermanentChannels.Contains(messageChannel.Name))
+            if (TranslationConstants.PermanentChannels.Contains(messageChannel.Name))
             {
                 return Task.CompletedTask;
             }
@@ -214,7 +216,7 @@ namespace TranslatorBot9000
                 callback: async result =>
                 {
                     var historyChannel = result.category.Channels.OfType<SocketTextChannel>()
-                        .SingleOrDefault(a => a.Name == LocalizationConstants.HistoryChannelName);
+                        .SingleOrDefault(a => a.Name == TranslationConstants.HistoryChannelName);
                     if (historyChannel == null)
                     {
                         return;
@@ -265,14 +267,14 @@ namespace TranslatorBot9000
 
         private Task GuildAvailable(SocketGuild guild)
         {
-            var category = guild.CategoryChannels.SingleOrDefault(a => a.Name == LocalizationConstants.CategoryName);
+            var category = guild.CategoryChannels.SingleOrDefault(a => a.Name == TranslationConstants.CategoryName);
             if (category == null)
             {
                 return Task.CompletedTask;
             }
 
             _logger.LogDebug($"Guild available for {guild.Name}, rebuilding pair map");
-            var tempChannels = category.Channels.OfType<ITextChannel>().Where(a => !LocalizationConstants.PermanentChannels.Contains(a.Name)).ToList();
+            var tempChannels = category.Channels.OfType<ITextChannel>().Where(a => !TranslationConstants.PermanentChannels.Contains(a.Name)).ToList();
 
             if (tempChannels.Count == 0)
             {

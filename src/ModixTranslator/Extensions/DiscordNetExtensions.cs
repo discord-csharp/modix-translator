@@ -1,7 +1,7 @@
 ﻿using Discord;
 using Microsoft.Extensions.Logging;
 
-namespace TranslatorBot9000
+namespace ModixTranslator
 {
     public static class DiscordNetExtensions
     {

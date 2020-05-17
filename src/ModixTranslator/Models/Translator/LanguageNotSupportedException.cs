@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.Serialization;
 
-namespace TranslatorBot9000
+namespace ModixTranslator.Models.Translator
 {
     [Serializable]
     internal class LanguageNotSupportedException : Exception

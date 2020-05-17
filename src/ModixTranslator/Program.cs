@@ -5,9 +5,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
+using ModixTranslator.Behaviors;
+using ModixTranslator.HostedServices;
 using System.Threading.Tasks;
 
-namespace TranslatorBot9000
+namespace ModixTranslator
 {
     class Program
     {
@@ -61,29 +63,29 @@ namespace TranslatorBot9000
                         });
                     });
 
-                    services.AddSingleton<ITranslationService, TranslationService>();
-
-                    services.AddSingleton<ITranslationTokenProvider, TranslationTokenProvider>();
+                    services.AddSingleton<ITranslationTokenProvider, TranslationTokenProviderHostedService>();
                     services.AddHostedService(provider =>
                     {
                         return provider.GetRequiredService<ITranslationTokenProvider>();
                     });
+
+                    services.AddSingleton<ITranslatorHostedService, TranslatorHostedService>();
+                    services.AddHostedService(provider =>
+                    {
+                        return provider.GetRequiredService<ITranslatorHostedService>();
+                    });
+
+                    services.AddHostedService<HostedCommandHostedService>();
+                    services.AddHostedService<ServerConfigurationHostedService>();
+                    services.AddHostedService<CategoryMaintHostedService>();
+
+                    services.AddSingleton<ITranslationService, TranslationService>();
 
                     services.AddSingleton<IBotService, BotHostedService>();
                     services.AddHostedService(provider =>
                     {
                         return provider.GetRequiredService<IBotService>();
                     });
-
-                    services.AddSingleton<ILocalizerHostedService, LocalizerHostedService>();
-                    services.AddHostedService(provider =>
-                    {
-                        return provider.GetRequiredService<ILocalizerHostedService>();
-                    });
-
-                    services.AddHostedService<HostedCommandService>();
-                    services.AddHostedService<ServerConfigurationHostedService>();
-                    services.AddHostedService<TranslationsCategoryMaintenance>();
                 });
 
             using var builtHost = host.Build();

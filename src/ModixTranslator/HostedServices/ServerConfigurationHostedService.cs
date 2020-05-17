@@ -6,7 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace TranslatorBot9000
+namespace ModixTranslator.HostedServices
 {
     public class ServerConfigurationHostedService : IHostedService
     {
@@ -39,20 +39,20 @@ namespace TranslatorBot9000
 
             _logger.LogDebug(string.Join(", ", guild.CategoryChannels.Select(a => a.Name)));
 
-            var category = guild.CategoryChannels.SingleOrDefault(a => a.Name == LocalizationConstants.CategoryName) as ICategoryChannel;
+            var category = guild.CategoryChannels.SingleOrDefault(a => a.Name == TranslationConstants.CategoryName) as ICategoryChannel;
             if (category == null)
             {
-                _logger.LogDebug($"'{LocalizationConstants.CategoryName}' category not found, creating.");
-                _waitingForChannel = LocalizationConstants.CategoryName;
-                category = await guild.CreateCategoryChannelAsync(LocalizationConstants.CategoryName);
+                _logger.LogDebug($"'{TranslationConstants.CategoryName}' category not found, creating.");
+                _waitingForChannel = TranslationConstants.CategoryName;
+                category = await guild.CreateCategoryChannelAsync(TranslationConstants.CategoryName);
                 _channelCreatedWaiter.WaitOne();
             }
             
             var tmpCat = guild.GetCategoryChannel(category.Id);
             var tmpChans = tmpCat.Channels;
 
-            await CreateOrUpdateChannel(guild, category, LocalizationConstants.HowToChannelName, $"Use the ??localize <your-language> command to start a session", 999);
-            await CreateOrUpdateChannel(guild, category, LocalizationConstants.HistoryChannelName, $"Use this channel to search past localized conversations", 0);
+            await CreateOrUpdateChannel(guild, category, TranslationConstants.HowToChannelName, $"Use the ??localize <your-language> command to start a session", 999);
+            await CreateOrUpdateChannel(guild, category, TranslationConstants.HistoryChannelName, $"Use this channel to search past localized conversations", 0);
 
             _logger.LogDebug($"Done configuring guild {guild.Name}");
         }

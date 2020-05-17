@@ -8,16 +8,16 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace TranslatorBot9000
+namespace ModixTranslator.HostedServices
 {
-    public class HostedCommandService : IHostedService
+    public class HostedCommandHostedService : IHostedService
     {
-        private readonly ILogger<HostedCommandService> _logger;
+        private readonly ILogger<HostedCommandHostedService> _logger;
         private readonly IServiceProvider _provider;
         private readonly IBotService _botService;
         private readonly CommandService _commandService;
 
-        public HostedCommandService(ILogger<HostedCommandService> logger, IServiceProvider provider, IBotService botService, CommandService commandService)
+        public HostedCommandHostedService(ILogger<HostedCommandHostedService> logger, IServiceProvider provider, IBotService botService, CommandService commandService)
         {
             _logger = logger;
             _provider = provider;

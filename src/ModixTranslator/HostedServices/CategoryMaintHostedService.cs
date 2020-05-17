@@ -7,16 +7,16 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace TranslatorBot9000
+namespace ModixTranslator.HostedServices
 {
-    public class TranslationsCategoryMaintenance : IHostedService
+    public class CategoryMaintHostedService : IHostedService
     {
-        private readonly ILogger<TranslationsCategoryMaintenance> _logger;
+        private readonly ILogger<CategoryMaintHostedService> _logger;
         private readonly IBotService _bot;
         private readonly Timer _channelCleanupTimer;
         private readonly ConcurrentDictionary<ulong, DateTimeOffset> _channelActivity = new ConcurrentDictionary<ulong, DateTimeOffset>();
 
-        public TranslationsCategoryMaintenance(ILogger<TranslationsCategoryMaintenance> logger, IBotService bot)
+        public CategoryMaintHostedService(ILogger<CategoryMaintHostedService> logger, IBotService bot)
         {
             _logger = logger;
             _bot = bot;
@@ -29,7 +29,7 @@ namespace TranslatorBot9000
             foreach (var guild in _bot.DiscordClient.Guilds)
             {
                 _logger.LogDebug($"Cleaning up {guild.Name}");
-                var locCategory = guild.Channels.OfType<SocketCategoryChannel>().SingleOrDefault(a => a.Name == LocalizationConstants.CategoryName);
+                var locCategory = guild.Channels.OfType<SocketCategoryChannel>().SingleOrDefault(a => a.Name == TranslationConstants.CategoryName);
                 if (locCategory == null)
                 {
                     continue;
@@ -39,7 +39,7 @@ namespace TranslatorBot9000
 
                 var tempChannels = guild.GetCategoryChannel(locCategory.Id).Channels
                     .OfType<SocketTextChannel>()
-                    .Where(a => !LocalizationConstants.PermanentChannels.Contains(a.Name) && a.CategoryId == locCategory.Id);
+                    .Where(a => !TranslationConstants.PermanentChannels.Contains(a.Name) && a.CategoryId == locCategory.Id);
 
                 foreach (var channel in tempChannels)
                 {
@@ -99,7 +99,7 @@ namespace TranslatorBot9000
             {
                 return Task.CompletedTask;
             }
-            var localizedCategory = channel.Guild.CategoryChannels.SingleOrDefault(a => a.Name == LocalizationConstants.CategoryName);
+            var localizedCategory = channel.Guild.CategoryChannels.SingleOrDefault(a => a.Name == TranslationConstants.CategoryName);
             if (localizedCategory == null)
             {
                 return Task.CompletedTask;

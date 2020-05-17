@@ -9,18 +9,18 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace TranslatorBot9000
+namespace ModixTranslator.HostedServices
 {
     public interface ITranslationTokenProvider : IHostedService, IAsyncDisposable
     {
         public string? Token { get; }
     }
 
-    class TranslationTokenProvider : ITranslationTokenProvider
+    class TranslationTokenProviderHostedService : ITranslationTokenProvider
     {
         private readonly Timer _tokenUpdateTimer;
         private readonly IConfiguration _config;
-        private readonly ILogger<TranslationTokenProvider> _logger;
+        private readonly ILogger<TranslationTokenProviderHostedService> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
 
         private const string _authnEndpoint = "https://api.cognitive.microsoft.com/sts/v1.0/issueToken";
@@ -30,7 +30,7 @@ namespace TranslatorBot9000
 
         public string? Token { get; set; }
 
-        public TranslationTokenProvider(IConfiguration config, ILogger<TranslationTokenProvider> logger, IHttpClientFactory httpClientFactory)
+        public TranslationTokenProviderHostedService(IConfiguration config, ILogger<TranslationTokenProviderHostedService> logger, IHttpClientFactory httpClientFactory)
         {
             _config = config;
             _logger = logger;

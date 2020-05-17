@@ -1,12 +1,11 @@
 ﻿
-namespace TranslatorBot9000
+namespace ModixTranslator
 {
-    public class LocalizationConstants
+    public class TranslationConstants
     {
         public const string CategoryName = "localized";
         public const string HowToChannelName = "how-to";
         public const string HistoryChannelName = "history";
         public static readonly string[] PermanentChannels = new[] { HowToChannelName, HistoryChannelName };
-        public const string TempChannelNameTemplate = "from-{from}-to-{to}";
     }
 }

@@ -1,6 +1,6 @@
 ﻿using Discord;
 
-namespace TranslatorBot9000
+namespace ModixTranslator.Models.Translator
 {
     public class ChannelPair
     {

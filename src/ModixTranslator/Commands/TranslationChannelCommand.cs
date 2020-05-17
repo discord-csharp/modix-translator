@@ -1,14 +1,16 @@
 ﻿using Discord.Commands;
+using ModixTranslator.HostedServices;
+using ModixTranslator.Models.Translator;
 using System.Threading.Tasks;
 
-namespace TranslatorBot9000
+namespace ModixTranslator.Commands
 {
     [Group("translate")]
     public class TranslationChannelCommand : ModuleBase<SocketCommandContext>
     {
-        private readonly ILocalizerHostedService _localizer;
+        private readonly ITranslatorHostedService _localizer;
 
-        public TranslationChannelCommand(ILocalizerHostedService localizer)
+        public TranslationChannelCommand(ITranslatorHostedService localizer)
         {
             _localizer = localizer;
         }

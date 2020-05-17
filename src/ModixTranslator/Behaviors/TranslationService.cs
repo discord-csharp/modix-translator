@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using ModixTranslator.HostedServices;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,17 +8,17 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Encodings.Web;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using static ModixTranslator.Models.TranslationService.TranslationService;
 
-namespace TranslatorBot9000
+namespace ModixTranslator.Behaviors
 {
     public interface ITranslationService
     {
         Task<string> GetTranslation(string from, string to, string text);
         Task<bool> IsLangSupported(string lang);
     }
-    public class TranslationService : ITranslationService
+    public partial class TranslationService : ITranslationService
     {
         private readonly ILogger<TranslationService> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
@@ -97,47 +98,6 @@ namespace TranslatorBot9000
 
             _logger.LogDebug("Finished translating");
             return message;
-        }
-
-        public class TranslationRequest
-        {
-            public TranslationRequest(string text)
-            {
-                Text = text;
-            }
-
-            [JsonPropertyName("text")]
-            public string Text { get; private set; }
-        }
-
-        public class TranslationResponse
-        {
-            [JsonPropertyName("translations")]
-            public List<TranslatedText>? Translations { get; set; }
-
-        }
-
-        public class TranslatedText
-        {
-            [JsonPropertyName("text")]
-            public string? Text { get; set; }
-        }
-        public class SupportedLanguageResponse
-        {
-            [JsonPropertyName("translation")]
-            public Dictionary<string, LanguageDetails> Translation { get; set; } = new Dictionary<string, LanguageDetails>(StringComparer.OrdinalIgnoreCase);
-        }
-        public class LanguageDetails 
-        {
-
-            [JsonPropertyName("name")]
-            public string? Name { get; set; }
-
-            [JsonPropertyName("nativeName")]
-            public string? NativeName { get; set; }
-
-            [JsonPropertyName("dir")]
-            public string? Direction { get; set; }
         }
     }
 }
