@@ -2,7 +2,10 @@
 using Discord.WebSocket;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using ModixTranslator.Behaviors;
+using System;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -12,13 +15,15 @@ namespace ModixTranslator.HostedServices
     {
         private readonly ILogger<ServerConfigurationHostedService> _logger;
         private readonly IBotService _bot;
+        private readonly ITranslationService _translationService;
         private readonly AutoResetEvent _channelCreatedWaiter;
         private string _waitingForChannel = string.Empty;
 
-        public ServerConfigurationHostedService(ILogger<ServerConfigurationHostedService> logger, IBotService bot)
+        public ServerConfigurationHostedService(ILogger<ServerConfigurationHostedService> logger, IBotService bot, ITranslationService translationService)
         {
             _logger = logger;
             _bot = bot;
+            _translationService = translationService;
             _channelCreatedWaiter = new AutoResetEvent(false);
         }
 
@@ -51,13 +56,52 @@ namespace ModixTranslator.HostedServices
             var tmpCat = guild.GetCategoryChannel(category.Id);
             var tmpChans = tmpCat.Channels;
 
-            await CreateOrUpdateChannel(guild, category, TranslationConstants.HowToChannelName, $"Use the ??localize <your-language> command to start a session", 999);
+            var howtoChannel = await CreateOrUpdateChannel(guild, category, TranslationConstants.HowToChannelName, $"Use the ??translate create <your-language> command to start a session", 999);
+            await PostStockMessages(howtoChannel);
             await CreateOrUpdateChannel(guild, category, TranslationConstants.HistoryChannelName, $"Use this channel to search past localized conversations", 0);
 
             _logger.LogDebug($"Done configuring guild {guild.Name}");
         }
 
-        private async Task CreateOrUpdateChannel(SocketGuild guild, ICategoryChannel category, string name, string topic, int position)
+        private async Task PostStockMessages(IGuildChannel howtoChannel)
+        {
+            var channel = await howtoChannel.Guild.GetTextChannelAsync(howtoChannel.Id);
+            var messageBatch = await channel.GetMessagesAsync(20).ToListAsync();
+            var messages = messageBatch.SelectMany(m => m.ToList()).ToList();
+
+            var supportedMessage = messages.FirstOrDefault(a => a.Content.Contains("Supported Languages:"));
+            if(supportedMessage == null)
+            {
+                var messageBuilder = new StringBuilder();
+                var langs = await _translationService.GetSupportedLanguages();
+                messageBuilder.Append($"{Format.Bold("Supported Languages:")}\n");
+                messageBuilder.Append("```\n");
+                messageBuilder.Append($"{"Language",-9}Name\n");
+
+                foreach(var lang in langs.Translation.OrderBy(a => a.Key))
+                {
+                    messageBuilder.Append($"{lang.Key,-9}{lang.Value.NativeName}\n");
+                }
+                messageBuilder.Append("```");
+
+                await channel.SendMessageAsync(messageBuilder.ToString());
+            }
+
+            var commandMessage = messages.FirstOrDefault(a => a.Content.Contains("Usage:"));
+            if(commandMessage == null)
+            {
+                await channel.SendMessageAsync($"{Format.Bold("Usage:")} {Format.Code("??translate create <lang>")}");
+            }
+
+            var exampleMessage = messages.FirstOrDefault(a => a.Content.Contains("Example:"));
+            if(exampleMessage == null)
+            {
+                await channel.SendMessageAsync($"{Format.Bold("Example:")} {Format.Code("??translate create es")}");
+            }
+
+        }
+
+        private async Task<IGuildChannel> CreateOrUpdateChannel(SocketGuild guild, ICategoryChannel category, string name, string topic, int position)
         {
             var channel = guild.Channels.OfType<SocketTextChannel>().SingleOrDefault(a => a.Name == name && a.CategoryId == category.Id) as IGuildChannel;
             if (channel == null)
@@ -84,6 +128,7 @@ namespace ModixTranslator.HostedServices
             {
                 await channel.AddPermissionOverwriteAsync(_bot.DiscordClient.CurrentUser, new OverwritePermissions(sendMessages: PermValue.Allow, addReactions: PermValue.Allow));
             }
+            return channel;
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
