@@ -22,17 +22,27 @@ namespace ModixTranslator
         public static string? GetLangFromChannelName(this ITextChannel channel)
         {
             var nameParts = channel.Name.Split('-');
-            if (nameParts.Length >= 2)
+            if (nameParts.Length != 3)
             {
-                return nameParts[1].Replace("_", "-");
+                return null;
             }
 
-            return null;
+            string? loc;
+            if (nameParts[0] == TranslationConstants.StandardLanguage)
+            {
+                loc = nameParts[2];
+            }
+            else
+            {
+                loc = nameParts[0];
+            }
+
+            return loc?.Replace("_", "-");
         }
 
         public static bool IsStandardLangChannel(this ITextChannel channel)
         {
-            return channel.Name.StartsWith("to");
+            return channel.Name.StartsWith(TranslationConstants.StandardLanguage);
         }
     }
 }

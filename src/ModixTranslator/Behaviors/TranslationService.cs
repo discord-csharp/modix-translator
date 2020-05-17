@@ -119,19 +119,6 @@ namespace ModixTranslator.Behaviors
             var sb = new StringBuilder(text);
             foreach (var replacement in replacements)
             {
-                //Console.WriteLine($"replacing {replacement.Key} with {replacement.Value} in {sb}");
-
-                //Console.WriteLine("Token");
-                //foreach(var c in replacement.Key)
-                //{
-                //    Console.WriteLine($"{c}{(int)c}");
-                //}
-                //Console.WriteLine("Replacement string");
-                //foreach(var c in sb.ToString())
-                //{
-                //    Console.WriteLine($"{c}{(int)c}");
-                //}
-
                 sb.Replace(replacement.Key, replacement.Value);
             }
             return sb.ToString();

@@ -47,8 +47,8 @@ namespace ModixTranslator.HostedServices
                 throw new LanguageNotSupportedException($"{lang} is not supported at this time.");
             }
 
-            var fromLangName = $"from-{safeLang}-to-{TranslationConstants.StandardLanguage}";
-            var toLangName = $"to-{safeLang}-from-{TranslationConstants.StandardLanguage}";
+            var fromLangName = $"{safeLang}-to-{TranslationConstants.StandardLanguage}";
+            var toLangName = $"{TranslationConstants.StandardLanguage}-to-{safeLang}";
             var fromLangTopic = await _translation.GetTranslation(TranslationConstants.StandardLanguage, lang, $"Responses will be translated to {TranslationConstants.StandardLanguage} and posted in this channel's pair `#from-{TranslationConstants.StandardLanguage}-to-{lang}`");
             var toLangTopic = $"Responses will be translated to {lang} and posted in this channel's pair `#from-{lang}-to-{TranslationConstants.StandardLanguage}`";
 
@@ -191,9 +191,14 @@ namespace ModixTranslator.HostedServices
 
                     _logger.LogDebug("Sending messages to the history channel");
 
-                    // todo: make into an embed
-                    await historyChannel.SendMessageAsync($"{guildUser.Nickname ?? guildUser.Username}: {result.original}");
-                    await historyChannel.SendMessageAsync($"{guildUser.Nickname ?? guildUser.Username}: {result.translated}");
+                    var nickname = guildUser.Nickname ?? guildUser.Username;
+
+                    var embed = new EmbedBuilder()
+                        .WithAuthor(nickname)
+                        .WithDescription(result.original)
+                        .Build();
+
+                    await historyChannel.SendMessageAsync(result.translated, embed: embed);
 
                     _logger.LogDebug("Completed translating messages");
                 });
