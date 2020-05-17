@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -54,7 +53,7 @@ namespace ModixTranslator.Behaviors
 
         public async Task<string> GetTranslation(string? from, string to, string text)
         {
-            _logger.LogDebug($"Translating {text} from {from} to {to}");
+            _logger.LogDebug($"Translating {text} from {from ?? "auto"} to {to}");
             string message;
             try
             {
@@ -71,7 +70,8 @@ namespace ModixTranslator.Behaviors
                     url += $"&from={from}";
                 }
 
-                var response = await client.PostAsJsonAsync(url, new[] { new TranslationRequest(strippedText) }, options);
+                var requestBody = JsonSerializer.Serialize(new[] { new TranslationRequest(strippedText) }, options);
+                var response = await client.PostAsync(url, new StringContent(requestBody, Encoding.UTF8, "application/json"));
 
                 if (!response.IsSuccessStatusCode)
                 {

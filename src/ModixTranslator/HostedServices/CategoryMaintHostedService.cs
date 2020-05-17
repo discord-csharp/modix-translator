@@ -81,6 +81,13 @@ namespace ModixTranslator.HostedServices
                     if ((DateTimeOffset.UtcNow - lastMessageTime).TotalMinutes >= 60)
                     {
                         _logger.LogDebug($"Channel {channel.Name} is idle, deleting.");
+
+                        // because I'm super paranoid about deleting the wrong channels, a third category check
+                        if(channel.Category?.Name != TranslationConstants.CategoryName)
+                        {
+                            throw new Exception($"Cleanup was about to delete a channel from a different category! channel: {channel.Name} category: {channel.Category?.Name}");
+                        }
+
                         await channel.DeleteAsync();
                     }
                     else

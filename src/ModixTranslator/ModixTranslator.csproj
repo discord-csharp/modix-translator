@@ -6,10 +6,6 @@
         <Nullable>enable</Nullable>
         <LangVersion>preview</LangVersion>
         <UserSecretsId>4d9d6bca-ddc0-45ee-a876-74d5a6b1d83c</UserSecretsId>
-        <RestoreSources>
-            https://api.nuget.org/v3/index.json;
-            https://www.myget.org/F/discord-net/api/v3/index.json;
-        </RestoreSources>
     </PropertyGroup>
 
     <ItemGroup>

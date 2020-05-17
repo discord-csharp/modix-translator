@@ -1,21 +1,24 @@
 ﻿using Discord.Commands;
+using ModixTranslator.Behaviors;
 using ModixTranslator.HostedServices;
 using ModixTranslator.Models.Translator;
+using System;
 using System.Threading.Tasks;
 
 namespace ModixTranslator.Commands
 {
-    [Group("translate")]
     public class TranslationChannelCommand : ModuleBase<SocketCommandContext>
     {
         private readonly ITranslatorHostedService _localizer;
+        private readonly ITranslationService _translator;
 
-        public TranslationChannelCommand(ITranslatorHostedService localizer)
+        public TranslationChannelCommand(ITranslatorHostedService localizer, ITranslationService translator)
         {
             _localizer = localizer;
+            _translator = translator;
         }
 
-        [Command("create")]
+        [Command("translate create"), Priority(1000)]
         public async Task Create(string lang)
         {
             try
@@ -34,6 +37,22 @@ namespace ModixTranslator.Commands
             {
                 await Context.Channel.SendMessageAsync(ex.Message);
             }
+        }
+
+        [Command("translate"), Priority(1)]
+        public async Task Translate(string to, [Remainder]string text)
+        {
+            if(string.IsNullOrWhiteSpace(to))
+            {
+                throw new ArgumentNullException(nameof(to));
+            }
+            if(string.IsNullOrWhiteSpace(text))
+            {
+                throw new ArgumentNullException(nameof(text));
+            }
+
+            var translation = await _translator.GetTranslation(null, to, text);
+            await Context.Channel.SendMessageAsync(translation);
         }
     }
 }
