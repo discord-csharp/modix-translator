@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "TranslatorBot9000": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "BOT_Environment": "Development"
+      }
+    }
+  }
+}

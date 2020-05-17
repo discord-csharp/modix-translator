@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30028.174
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ModixTranslator", "ModixTranslator\ModixTranslator.csproj", "{9B55DFC5-FB90-4B12-820C-E29842300008}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9B55DFC5-FB90-4B12-820C-E29842300008}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9B55DFC5-FB90-4B12-820C-E29842300008}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9B55DFC5-FB90-4B12-820C-E29842300008}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9B55DFC5-FB90-4B12-820C-E29842300008}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {BFA6E485-CA92-4786-AA86-A34B02F30CD8}
+	EndGlobalSection
+EndGlobal

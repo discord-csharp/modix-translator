@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net5.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <LangVersion>preview</LangVersion>
+        <UserSecretsId>4d9d6bca-ddc0-45ee-a876-74d5a6b1d83c</UserSecretsId>
+        <RestoreSources>
+            https://api.nuget.org/v3/index.json;
+            https://www.myget.org/F/discord-net/api/v3/index.json;
+        </RestoreSources>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="5.0.0-preview.3.20215.2" />
+        <PackageReference Include="Microsoft.Extensions.Hosting" Version="5.0.0-preview.3.20215.2" />
+        <PackageReference Include="Microsoft.Extensions.Http" Version="5.0.0-preview.3.20215.2" />
+        <PackageReference Include="Discord.Net" Version="2.3.0-dev-20200507.9" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="appsettings.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
+</Project>
