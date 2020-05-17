@@ -22,13 +22,13 @@ namespace ModixTranslator.Commands
             {
                 var pair = await _localizer.GetOrCreateChannelPair(Context.Guild, lang);
 
-                if(pair?.EnglishChannel == null || pair?.LangChannel == null)
+                if(pair?.StandardLangChanel == null || pair?.TranslationChannel == null)
                 {
                     await Context.Channel.SendMessageAsync("Unable to create channel pair");
                     return;
                 }
 
-                await Context.Channel.SendMessageAsync($"Translation channels have been created at {pair.EnglishChannel.Mention} and {pair.LangChannel.Mention}");
+                await Context.Channel.SendMessageAsync($"Translation channels have been created at {pair.StandardLangChanel.Mention} and {pair.TranslationChannel.Mention}");
             }
             catch(LanguageNotSupportedException ex)
             {

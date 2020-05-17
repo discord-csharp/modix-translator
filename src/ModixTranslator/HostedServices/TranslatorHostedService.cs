@@ -1,6 +1,5 @@
 ﻿using Discord;
 using Discord.WebSocket;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ModixTranslator.Behaviors;
 using ModixTranslator.Models.Translator;
@@ -13,11 +12,6 @@ using System.Threading.Tasks;
 
 namespace ModixTranslator.HostedServices
 {
-    public interface ITranslatorHostedService : IHostedService
-    {
-        Task<ChannelPair?> GetOrCreateChannelPair(SocketGuild guild, string lang);
-    }
-
     public class TranslatorHostedService : ITranslatorHostedService
     {
         private readonly ILogger<TranslatorHostedService> _logger;
@@ -53,10 +47,10 @@ namespace ModixTranslator.HostedServices
                 throw new LanguageNotSupportedException($"{lang} is not supported at this time.");
             }
 
-            var fromLangName = $"from-{safeLang}-to-en";
-            var toLangName = $"to-{safeLang}-from-en";
-            var fromLangTopic = await _translation.GetTranslation("en", lang, $"Type naturally in your native language. Responses will be translated to English and posted in this channel's pair #from-en-to-{lang}");
-            var toLangTopic = $"Type naturally in English. Responses will be translated to {lang} and posted in this channel's pair #from-{lang}-to-en";
+            var fromLangName = $"from-{safeLang}-to-{TranslationConstants.StandardLanguage}";
+            var toLangName = $"to-{safeLang}-from-{TranslationConstants.StandardLanguage}";
+            var fromLangTopic = await _translation.GetTranslation(TranslationConstants.StandardLanguage, lang, $"Responses will be translated to {TranslationConstants.StandardLanguage} and posted in this channel's pair `#from-{TranslationConstants.StandardLanguage}-to-{lang}`");
+            var toLangTopic = $"Responses will be translated to {lang} and posted in this channel's pair `#from-{lang}-to-{TranslationConstants.StandardLanguage}`";
 
             var fromLangChannel = await guild.CreateTextChannelAsync(fromLangName, p =>
             {
@@ -71,15 +65,15 @@ namespace ModixTranslator.HostedServices
             });
             pair = new ChannelPair
             {
-                LangChannel = fromLangChannel,
-                EnglishChannel = ToLangChannel
+                TranslationChannel = fromLangChannel,
+                StandardLangChanel = ToLangChannel
             };
 
             if (!_channelPairs.TryAdd(safeLang, pair))
             {
                 _logger.LogWarning($"The channel pairs {{{fromLangName}, {toLangName}}} have already been tracked, cleaning up");
-                await pair.LangChannel.DeleteAsync();
-                await pair.EnglishChannel.DeleteAsync();
+                await pair.TranslationChannel.DeleteAsync();
+                await pair.StandardLangChanel.DeleteAsync();
                 _channelPairs.TryGetValue(safeLang, out pair);
             }
 
@@ -89,17 +83,6 @@ namespace ModixTranslator.HostedServices
         private static string GetSafeLangString(string lang)
         {
             return lang.ToLower().Replace("-", "_");
-        }
-
-        private string? GetLangFromChannelName(string channelName)
-        {
-            var nameParts = channelName.Split('-');
-            if (nameParts.Length >= 2)
-            {
-                return nameParts[1].Replace("_", "-");
-            }
-            _logger.LogWarning($"{channelName} is not the expected format.");
-            return null;
         }
 
         private Task MessageUpdated(Cacheable<IMessage, ulong> lastMessage, SocketMessage newMessage, ISocketMessageChannel channel)
@@ -119,7 +102,7 @@ namespace ModixTranslator.HostedServices
                 return Task.CompletedTask;
             }
 
-            //todo:
+            //todo: message editing
             return Task.CompletedTask;
         }
 
@@ -155,7 +138,7 @@ namespace ModixTranslator.HostedServices
                 return Task.CompletedTask;
             }
 
-            var lang = GetLangFromChannelName(messageChannel.Name);
+            var lang = messageChannel.GetLangFromChannelName();
 
             if (lang == null)
             {
@@ -175,57 +158,42 @@ namespace ModixTranslator.HostedServices
             _bot.ExecuteHandlerAsyncronously<(SocketCategoryChannel category, string original, string translated)>(
                 handler: async discord =>
                 {
-                    if(pair?.LangChannel == null || pair?.EnglishChannel == null)
+                    if(pair?.TranslationChannel == null || pair?.StandardLangChanel == null)
                     {
                         throw new InvalidOperationException("Invalid channel pair");
                     }
 
-                    var relayText = string.Empty;
-                    if (messageChannel.Id == pair.EnglishChannel.Id)
+                    string relayText = string.Empty;
+                    if (messageChannel.Id == pair.StandardLangChanel.Id)
                     {
-                        _logger.LogDebug($"Message received from english channel {messageChannel.Name}, sending to {pair.LangChannel.Name}");
-                        if (!string.IsNullOrWhiteSpace(message.Content))
-                        {
-                            relayText = await _translation.GetTranslation("en", lang, message.Content);
-                        }
-
-                        if(message.Attachments.Count != 0)
-                        {
-                            relayText += $" {string.Join(" ", message.Attachments.Select(a => a.Url))}";
-                        }
-                        await pair.LangChannel.SendMessageAsync($"{guildUser.Nickname ?? guildUser.Username}: {relayText}");
+                        relayText = await SendMessageToPartner(message, $"{guildUser.Nickname ?? guildUser.Username}", pair.TranslationChannel, TranslationConstants.StandardLanguage, lang);
                     }
-                    else if (messageChannel.Id == pair.LangChannel.Id)
+                    else if (messageChannel.Id == pair.TranslationChannel.Id)
                     {
-                        _logger.LogDebug($"Message received from localized channel channel {messageChannel.Name}, sending to {pair.EnglishChannel.Name}");
-                        if (!string.IsNullOrWhiteSpace(message.Content))
-                        {
-                            relayText = await _translation.GetTranslation(lang, "en", message.Content);
-                        }
-
-                        if (message.Attachments.Count != 0)
-                        {
-                            relayText += $" {string.Join(" ", message.Attachments.Select(a => a.Url))}";
-                        }
-
-                        await pair.EnglishChannel.SendMessageAsync($"{guildUser.Nickname ?? guildUser.Username}: {relayText}");
+                        relayText = await SendMessageToPartner(message, $"{guildUser.Nickname ?? guildUser.Username}", pair.StandardLangChanel, lang, TranslationConstants.StandardLanguage);
                     }
 
                     return (categoryChannel, message.Content, relayText);
                 },
                 callback: async result =>
                 {
+                    if (result.category == null || string.IsNullOrWhiteSpace(result.original) || string.IsNullOrWhiteSpace(result.translated))
+                    {
+                        return;
+                    }
+
                     var historyChannel = result.category.Channels.OfType<SocketTextChannel>()
                         .SingleOrDefault(a => a.Name == TranslationConstants.HistoryChannelName);
                     if (historyChannel == null)
                     {
                         return;
                     }
+
                     _logger.LogDebug("Sending messages to the history channel");
 
+                    // todo: make into an embed
                     await historyChannel.SendMessageAsync($"{guildUser.Nickname ?? guildUser.Username}: {result.original}");
                     await historyChannel.SendMessageAsync($"{guildUser.Nickname ?? guildUser.Username}: {result.translated}");
-
 
                     _logger.LogDebug("Completed translating messages");
                 });
@@ -233,39 +201,54 @@ namespace ModixTranslator.HostedServices
             return Task.CompletedTask;
         }
 
+        private async Task<string> SendMessageToPartner(SocketMessage message, string username, ITextChannel targetChannel, string from, string to)
+        {
+            var isStandardLang = targetChannel.IsStandardLangChannel();
 
-        private Task ChannelDeleted(SocketChannel channel)
+            _logger.LogDebug($"Message received from {from} channel '{message.Channel.Name}', sending to {targetChannel.Name}");
+            string relayText = string.Empty;
+            if (!string.IsNullOrWhiteSpace(message.Content))
+            {
+                relayText = await _translation.GetTranslation(from, to, message.Content);
+            }
+
+            if (message.Attachments.Count != 0)
+            {
+                relayText += $" {string.Join(" ", message.Attachments.Select(a => a.Url))}";
+            }
+
+
+            await targetChannel.SendMessageAsync($"{username}: {relayText}");
+            return relayText;
+        }
+
+        private Task RemoveChannelFromMap(SocketChannel channel)
         {
             string foundLang = string.Empty;
             foreach (var pair in _channelPairs)
             {
-                if(pair.Value?.LangChannel == null || pair.Value?.EnglishChannel == null)
+                if(pair.Value?.TranslationChannel == null || pair.Value?.StandardLangChanel == null)
                 {
                     _logger.LogWarning("invalid channel pair detected");
                     continue;
                 }
 
-                if (channel.Id == pair.Value.EnglishChannel.Id)
+                if (channel.Id == pair.Value.StandardLangChanel.Id || channel.Id == pair.Value.TranslationChannel.Id)
                 {
-                    _logger.LogDebug($"English channel {pair.Value.EnglishChannel.Name} deleted, removing paired lang channel {pair.Value.LangChannel.Name}");
-                    foundLang = pair.Key;
-                }
-                else if (channel.Id == pair.Value.LangChannel.Id)
-                {
-                    _logger.LogDebug($"English channel {pair.Value.LangChannel.Name} deleted, removing paired lang channel {pair.Value.EnglishChannel.Name}");
                     foundLang = pair.Key;
                 }
             }
 
             if (foundLang != string.Empty)
             {
+                _logger.LogDebug($"One of the channels in a pair were deleted, removing pair '{foundLang}' from map");
                 _channelPairs.TryRemove(foundLang, out _);
             }
 
             return Task.CompletedTask;
         }
 
-        private Task GuildAvailable(SocketGuild guild)
+        private Task BuildChannelMap(SocketGuild guild)
         {
             var category = guild.CategoryChannels.SingleOrDefault(a => a.Name == TranslationConstants.CategoryName);
             if (category == null)
@@ -286,7 +269,7 @@ namespace ModixTranslator.HostedServices
             foreach (var channel in tempChannels)
             {
                 _logger.LogDebug($"Checking {channel.Name}");
-                var lang = GetLangFromChannelName(channel.Name);
+                var lang = channel.GetLangFromChannelName();
                 if (lang == null)
                 {
                     _logger.LogDebug($"{channel.Name} is not a translation channel, skipping");
@@ -294,8 +277,8 @@ namespace ModixTranslator.HostedServices
                 }
 
                 var safeLang = GetSafeLangString(lang);
-                var isEnglishChannel = channel.Name.StartsWith("to");
-                _logger.LogDebug($"channel is the english lang channel? {isEnglishChannel}");
+                var isStandardLangChannel = channel.IsStandardLangChannel();
+                _logger.LogDebug($"channel is the {TranslationConstants.StandardLanguage} lang channel? {isStandardLangChannel}");
 
                 if (!pairs.TryGetValue(safeLang, out var pair))
                 {
@@ -304,21 +287,21 @@ namespace ModixTranslator.HostedServices
                     pairs[safeLang] = pair;
                 }
 
-                if (isEnglishChannel)
+                if (isStandardLangChannel)
                 {
-                    pair.EnglishChannel = channel;
+                    pair.StandardLangChanel = channel;
                 }
                 else
                 {
-                    pair.LangChannel = channel;
+                    pair.TranslationChannel = channel;
                 }
             }
 
             foreach (var pair in pairs.ToList())
             {
-                if (pair.Value.EnglishChannel == default || pair.Value.LangChannel == default)
+                if (pair.Value.StandardLangChanel == default || pair.Value.TranslationChannel == default)
                 {
-                    _logger.LogDebug("Pair is missing either the language channel or the english channel, skipping");
+                    _logger.LogDebug($"Pair is missing either the language channel or the {TranslationConstants.StandardLanguage} channel, skipping");
                     continue;
                 }
 
@@ -334,20 +317,20 @@ namespace ModixTranslator.HostedServices
             _logger.LogDebug("Localizer starting up");
             _bot.DiscordClient.MessageReceived += MessageReceived;
             _bot.DiscordClient.MessageUpdated += MessageUpdated;
-            _bot.DiscordClient.ChannelDestroyed += ChannelDeleted;
+            _bot.DiscordClient.ChannelDestroyed += RemoveChannelFromMap;
 
             if (_bot.DiscordClient.ConnectionState == ConnectionState.Connected && _bot.DiscordClient.Guilds.Count > 0)
             {
                 _logger.LogDebug("Discord bot is already connected, rebuilding pair map");
                 foreach (var guild in _bot.DiscordClient.Guilds)
                 {
-                    await GuildAvailable(guild);
+                    await BuildChannelMap(guild);
                 }
             }
             else
             {
                 _logger.LogDebug("Discord bot has not connected, registering the GuildAvailable event");
-                _bot.DiscordClient.GuildAvailable += GuildAvailable;
+                _bot.DiscordClient.GuildAvailable += BuildChannelMap;
             }
 
             _logger.LogDebug("Localizer started");
@@ -357,8 +340,8 @@ namespace ModixTranslator.HostedServices
         {
             _bot.DiscordClient.MessageReceived -= MessageReceived;
             _bot.DiscordClient.MessageUpdated -= MessageUpdated;
-            _bot.DiscordClient.ChannelDestroyed -= ChannelDeleted;
-            _bot.DiscordClient.GuildAvailable -= GuildAvailable;
+            _bot.DiscordClient.ChannelDestroyed -= RemoveChannelFromMap;
+            _bot.DiscordClient.GuildAvailable -= BuildChannelMap;
             return Task.CompletedTask;
         }
     }

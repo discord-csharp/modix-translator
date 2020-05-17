@@ -49,6 +49,12 @@ namespace ModixTranslator
                 .ConfigureServices((context, services) =>
                 {
                     services.AddSingleton(context.Configuration);
+                    services.AddSingleton<IBotService, BotHostedService>();
+                    services.AddHostedService(provider =>
+                    {
+                        return provider.GetRequiredService<IBotService>();
+                    });
+
                     services.AddHttpClient("translationClient");
                     services.AddHttpClient("authnClient");
                     services.AddSingleton(services =>
@@ -75,17 +81,12 @@ namespace ModixTranslator
                         return provider.GetRequiredService<ITranslatorHostedService>();
                     });
 
-                    services.AddHostedService<HostedCommandHostedService>();
+                    services.AddHostedService<CommandHostedService>();
                     services.AddHostedService<ServerConfigurationHostedService>();
                     services.AddHostedService<CategoryMaintHostedService>();
 
                     services.AddSingleton<ITranslationService, TranslationService>();
 
-                    services.AddSingleton<IBotService, BotHostedService>();
-                    services.AddHostedService(provider =>
-                    {
-                        return provider.GetRequiredService<IBotService>();
-                    });
                 });
 
             using var builtHost = host.Build();

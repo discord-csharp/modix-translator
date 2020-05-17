@@ -18,5 +18,21 @@ namespace ModixTranslator
                 _ => LogLevel.Debug
             };
         }
+
+        public static string? GetLangFromChannelName(this ITextChannel channel)
+        {
+            var nameParts = channel.Name.Split('-');
+            if (nameParts.Length >= 2)
+            {
+                return nameParts[1].Replace("_", "-");
+            }
+
+            return null;
+        }
+
+        public static bool IsStandardLangChannel(this ITextChannel channel)
+        {
+            return channel.Name.StartsWith("to");
+        }
     }
 }

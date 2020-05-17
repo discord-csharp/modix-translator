@@ -10,14 +10,14 @@ using System.Threading.Tasks;
 
 namespace ModixTranslator.HostedServices
 {
-    public class HostedCommandHostedService : IHostedService
+    public class CommandHostedService : IHostedService
     {
-        private readonly ILogger<HostedCommandHostedService> _logger;
+        private readonly ILogger<CommandHostedService> _logger;
         private readonly IServiceProvider _provider;
         private readonly IBotService _botService;
         private readonly CommandService _commandService;
 
-        public HostedCommandHostedService(ILogger<HostedCommandHostedService> logger, IServiceProvider provider, IBotService botService, CommandService commandService)
+        public CommandHostedService(ILogger<CommandHostedService> logger, IServiceProvider provider, IBotService botService, CommandService commandService)
         {
             _logger = logger;
             _provider = provider;

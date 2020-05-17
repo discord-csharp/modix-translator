@@ -7,5 +7,6 @@ namespace ModixTranslator
         public const string HowToChannelName = "how-to";
         public const string HistoryChannelName = "history";
         public static readonly string[] PermanentChannels = new[] { HowToChannelName, HistoryChannelName };
+        public const string StandardLanguage = "en";
     }
 }

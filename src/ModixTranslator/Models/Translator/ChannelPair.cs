@@ -4,7 +4,7 @@ namespace ModixTranslator.Models.Translator
 {
     public class ChannelPair
     {
-        public ITextChannel? LangChannel { get; set; }
-        public ITextChannel? EnglishChannel { get; set; }
+        public ITextChannel? TranslationChannel { get; set; }
+        public ITextChannel? StandardLangChanel { get; set; }
     }
 }
