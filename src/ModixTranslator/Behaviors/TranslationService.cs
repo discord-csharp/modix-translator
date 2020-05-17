@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using ModixTranslator.HostedServices;
+using ModixTranslator.Models.TranslationService;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,11 +12,10 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using static ModixTranslator.Models.TranslationService.TranslationService;
 
 namespace ModixTranslator.Behaviors
 {
-    public partial class TranslationService : ITranslationService
+    public class TranslationService : ITranslationService
     {
         private readonly ILogger<TranslationService> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
@@ -52,19 +52,26 @@ namespace ModixTranslator.Behaviors
             return response.Translation.ContainsKey(lang);
         }
 
-        public async Task<string> GetTranslation(string from, string to, string text)
+        public async Task<string> GetTranslation(string? from, string to, string text)
         {
             _logger.LogDebug($"Translating {text} from {from} to {to}");
             string message;
             try
             {
-                (string strippedText, Dictionary<string, string> codeBlocks) = StripBlocksFromText(text);
+                var (strippedText, codeBlocks) = StripBlocksFromText(text);
                 var client = _httpClientFactory.CreateClient("translationClient");
                 var token = _tokenProvider.Token;
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 client.BaseAddress = new Uri("https://api.cognitive.microsofttranslator.com/");
 
-                var response = await client.PostAsJsonAsync($"translate?api-version=3.0&to={to}&from={from}", new[] { new TranslationRequest(strippedText) }, options);
+                var url = $"translate?api-version=3.0&to={to}";
+
+                if(!string.IsNullOrWhiteSpace(from))
+                {
+                    url += $"&from={from}";
+                }
+
+                var response = await client.PostAsJsonAsync(url, new[] { new TranslationRequest(strippedText) }, options);
 
                 if (!response.IsSuccessStatusCode)
                 {

@@ -2,17 +2,14 @@
 
 namespace ModixTranslator.Models.TranslationService
 {
-    public partial class TranslationService
+    public class TranslationRequest
     {
-        public class TranslationRequest
+        public TranslationRequest(string text)
         {
-            public TranslationRequest(string text)
-            {
-                Text = text;
-            }
-
-            [JsonPropertyName("text")]
-            public string Text { get; private set; }
+            Text = text;
         }
+
+        [JsonPropertyName("text")]
+        public string Text { get; private set; }
     }
 }
