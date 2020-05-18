@@ -25,7 +25,7 @@ namespace ModixTranslator.Behaviors
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         };
 
-        private readonly Regex pattern = new Regex("`{1,3}.*?`{1,3}", RegexOptions.Singleline | RegexOptions.Compiled);
+        private readonly Regex pattern = new Regex("`{1,3}.*?`{1,3}|<.*?>", RegexOptions.Singleline | RegexOptions.Compiled);
         private readonly Regex keyScrubber = new Regex("\\D", RegexOptions.Compiled);
 
         public TranslationService(ILogger<TranslationService> logger, IHttpClientFactory httpClientFactory, ITranslationTokenProvider tokenProvider)
