@@ -19,7 +19,7 @@ namespace ModixTranslator
             };
         }
 
-        public static string? GetLangFromChannelName(this ITextChannel channel)
+        public static string? GetLangFromChannelName(this ITextChannel channel, string serverLanguage)
         {
             var nameParts = channel.Name.Split('-');
             if (nameParts.Length != 3)
@@ -28,7 +28,7 @@ namespace ModixTranslator
             }
 
             string? loc;
-            if (nameParts[0] == TranslationConstants.StandardLanguage)
+            if (nameParts[0] == serverLanguage)
             {
                 loc = nameParts[2];
             }
@@ -40,9 +40,9 @@ namespace ModixTranslator
             return loc?.Replace("_", "-");
         }
 
-        public static bool IsStandardLangChannel(this ITextChannel channel)
+        public static bool IsStandardLangChannel(this ITextChannel channel, string serverLanguage)
         {
-            return channel.Name.StartsWith(TranslationConstants.StandardLanguage);
+            return channel.Name.StartsWith(serverLanguage);
         }
     }
 }

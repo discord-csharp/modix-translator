@@ -82,9 +82,12 @@ namespace ModixTranslator
                     });
 
                     services.AddHostedService<CommandHostedService>();
-                    services.AddHostedService<ServerConfigurationHostedService>();
+                    services.AddSingleton<IServerConfigurationService, ServerConfigurationHostedService>();
+                    services.AddHostedService(provider =>
+                    {
+                        return provider.GetRequiredService<IServerConfigurationService>();
+                    });
                     services.AddHostedService<CategoryMaintHostedService>();
-
                     services.AddSingleton<ITranslationService, TranslationService>();
 
                 });

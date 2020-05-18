@@ -8,5 +8,6 @@ namespace ModixTranslator
         public const string HistoryChannelName = "history";
         public static readonly string[] PermanentChannels = new[] { HowToChannelName, HistoryChannelName };
         public const string StandardLanguage = "en";
+        public const int IdleChannelTimeoutMinutes = 240;
     }
 }

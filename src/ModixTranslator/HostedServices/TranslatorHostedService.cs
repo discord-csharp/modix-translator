@@ -17,18 +17,22 @@ namespace ModixTranslator.HostedServices
         private readonly ILogger<TranslatorHostedService> _logger;
         private readonly ITranslationService _translation;
         private readonly IBotService _bot;
+        private readonly IServerConfigurationService _serverConfig;
         private readonly ConcurrentDictionary<string, ChannelPair> _channelPairs = new ConcurrentDictionary<string, ChannelPair>();
 
-        public TranslatorHostedService(ILogger<TranslatorHostedService> logger, ITranslationService translationService, IBotService bot)
+        public TranslatorHostedService(ILogger<TranslatorHostedService> logger, ITranslationService translationService, IBotService bot, IServerConfigurationService serverConfig)
         {
             _logger = logger;
             _translation = translationService;
             _bot = bot;
+            _serverConfig = serverConfig;
         }
 
         public async Task<ChannelPair?> GetOrCreateChannelPair(SocketGuild guild, string lang)
         {
             string safeLang = GetSafeLangString(lang);
+            string guildLang = _serverConfig.GetLanguageForGuild(guild.Id);
+            string safeGuildLang = GetSafeLangString(guildLang);
             if (_channelPairs.TryGetValue(safeLang, out var pair))
             {
                 return pair;
@@ -47,10 +51,10 @@ namespace ModixTranslator.HostedServices
                 throw new LanguageNotSupportedException($"{lang} is not supported at this time.");
             }
 
-            var fromLangName = $"{safeLang}-to-{TranslationConstants.StandardLanguage}";
-            var toLangName = $"{TranslationConstants.StandardLanguage}-to-{safeLang}";
-            var fromLangTopic = await _translation.GetTranslation(TranslationConstants.StandardLanguage, lang, $"Responses will be translated to {TranslationConstants.StandardLanguage} and posted in this channel's pair `#from-{TranslationConstants.StandardLanguage}-to-{lang}`");
-            var toLangTopic = $"Responses will be translated to {lang} and posted in this channel's pair `#from-{lang}-to-{TranslationConstants.StandardLanguage}`";
+            var fromLangName = $"{safeLang}-to-{safeGuildLang}";
+            var toLangName = $"{safeGuildLang}-to-{safeLang}";
+            var fromLangTopic = await _translation.GetTranslation(guildLang, lang, $"Responses will be translated to {guildLang} and posted in this channel's pair `#{fromLangName}`");
+            var toLangTopic = $"Responses will be translated to {lang} and posted in this channel's pair `#{toLangName}`";
 
             var fromLangChannel = await guild.CreateTextChannelAsync(fromLangName, p =>
             {
@@ -138,7 +142,9 @@ namespace ModixTranslator.HostedServices
                 return Task.CompletedTask;
             }
 
-            var lang = messageChannel.GetLangFromChannelName();
+            var guildLang = _serverConfig.GetLanguageForGuild(messageChannel.Guild.Id);
+            var safeGuildLang = GetSafeLangString(guildLang);
+            var lang = messageChannel.GetLangFromChannelName(safeGuildLang);
 
             if (lang == null)
             {
@@ -166,11 +172,11 @@ namespace ModixTranslator.HostedServices
                     string relayText = string.Empty;
                     if (messageChannel.Id == pair.StandardLangChanel.Id)
                     {
-                        relayText = await SendMessageToPartner(message, $"{guildUser.Nickname ?? guildUser.Username}", pair.TranslationChannel, TranslationConstants.StandardLanguage, lang);
+                        relayText = await SendMessageToPartner(message, $"{guildUser.Nickname ?? guildUser.Username}", pair.TranslationChannel, guildLang, lang);
                     }
                     else if (messageChannel.Id == pair.TranslationChannel.Id)
                     {
-                        relayText = await SendMessageToPartner(message, $"{guildUser.Nickname ?? guildUser.Username}", pair.StandardLangChanel, lang, TranslationConstants.StandardLanguage);
+                        relayText = await SendMessageToPartner(message, $"{guildUser.Nickname ?? guildUser.Username}", pair.StandardLangChanel, lang, guildLang);
                     }
 
                     return (categoryChannel, message.Content, relayText);
@@ -208,7 +214,9 @@ namespace ModixTranslator.HostedServices
 
         private async Task<string> SendMessageToPartner(SocketMessage message, string username, ITextChannel targetChannel, string from, string to)
         {
-            var isStandardLang = targetChannel.IsStandardLangChannel();
+            var guildLang = _serverConfig.GetLanguageForGuild(targetChannel.Guild.Id);
+            var safeGuildLang = GetSafeLangString(guildLang);
+            var isStandardLang = targetChannel.IsStandardLangChannel(safeGuildLang);
 
             _logger.LogDebug($"Message received from {from} channel '{message.Channel.Name}', sending to {targetChannel.Name}");
             string relayText = string.Empty;
@@ -271,10 +279,13 @@ namespace ModixTranslator.HostedServices
 
             var pairs = new Dictionary<string, ChannelPair>();
 
+            var guildLang = _serverConfig.GetLanguageForGuild(guild.Id);
+            var safeGuildLang = GetSafeLangString(guildLang);
+
             foreach (var channel in tempChannels)
             {
                 _logger.LogDebug($"Checking {channel.Name}");
-                var lang = channel.GetLangFromChannelName();
+                var lang = channel.GetLangFromChannelName(safeGuildLang);
                 if (lang == null)
                 {
                     _logger.LogDebug($"{channel.Name} is not a translation channel, skipping");
@@ -282,8 +293,8 @@ namespace ModixTranslator.HostedServices
                 }
 
                 var safeLang = GetSafeLangString(lang);
-                var isStandardLangChannel = channel.IsStandardLangChannel();
-                _logger.LogDebug($"channel is the {TranslationConstants.StandardLanguage} lang channel? {isStandardLangChannel}");
+                var isStandardLangChannel = channel.IsStandardLangChannel(safeGuildLang);
+                _logger.LogDebug($"channel is the {safeGuildLang} lang channel? {isStandardLangChannel}");
 
                 if (!pairs.TryGetValue(safeLang, out var pair))
                 {
@@ -306,7 +317,7 @@ namespace ModixTranslator.HostedServices
             {
                 if (pair.Value.StandardLangChanel == default || pair.Value.TranslationChannel == default)
                 {
-                    _logger.LogDebug($"Pair is missing either the language channel or the {TranslationConstants.StandardLanguage} channel, skipping");
+                    _logger.LogDebug($"Pair is missing either the language channel or the {safeGuildLang} channel, skipping");
                     continue;
                 }
 

@@ -1,9 +1,12 @@
 ﻿using Discord;
+using Discord.Rest;
 using Discord.WebSocket;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ModixTranslator.Behaviors;
 using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -11,13 +14,19 @@ using System.Threading.Tasks;
 
 namespace ModixTranslator.HostedServices
 {
-    public class ServerConfigurationHostedService : IHostedService
+    public interface IServerConfigurationService : IHostedService
+    {
+        string GetLanguageForGuild(ulong guildId);
+    }
+
+    public class ServerConfigurationHostedService : IServerConfigurationService
     {
         private readonly ILogger<ServerConfigurationHostedService> _logger;
         private readonly IBotService _bot;
         private readonly ITranslationService _translationService;
         private readonly AutoResetEvent _channelCreatedWaiter;
         private string _waitingForChannel = string.Empty;
+        private readonly Dictionary<ulong, string> _guildLanguages = new Dictionary<ulong, string>();
 
         public ServerConfigurationHostedService(ILogger<ServerConfigurationHostedService> logger, IBotService bot, ITranslationService translationService)
         {
@@ -25,6 +34,16 @@ namespace ModixTranslator.HostedServices
             _bot = bot;
             _translationService = translationService;
             _channelCreatedWaiter = new AutoResetEvent(false);
+        }
+
+        public string GetLanguageForGuild(ulong guildId)
+        {
+            if(!_guildLanguages.TryGetValue(guildId, out var lang))
+            {
+                return TranslationConstants.StandardLanguage;
+            }
+
+            return lang;
         }
 
         private Task OnConfigureGuild(SocketGuild guild)
@@ -42,6 +61,26 @@ namespace ModixTranslator.HostedServices
         {
             _logger.LogDebug($"Configuring guild {guild.Name}");
 
+            _logger.LogDebug($"Detecting language for guild {guild.Name}");
+            var guildLang = guild.PreferredLocale;
+
+            _logger.LogDebug($"PreferredLocale set to {guildLang}");
+            var ci = new CultureInfo(guildLang);
+            guildLang = ci.Parent?.Name;
+            if (string.IsNullOrEmpty(guildLang))
+            {
+                guildLang = ci.Name;
+            }
+
+            if(!await _translationService.IsLangSupported(guildLang))
+            {
+                _logger.LogDebug($"Couldn't resolve guild language {guildLang}, defaulting to {TranslationConstants.StandardLanguage}");
+                guildLang = TranslationConstants.StandardLanguage;
+            }
+
+            _logger.LogDebug($"Setting the translation language for {guild.Name} to {guildLang}");
+            _guildLanguages[guild.Id] = guildLang;
+
             _logger.LogDebug(string.Join(", ", guild.CategoryChannels.Select(a => a.Name)));
 
             var category = guild.CategoryChannels.SingleOrDefault(a => a.Name == TranslationConstants.CategoryName) as ICategoryChannel;
@@ -52,7 +91,7 @@ namespace ModixTranslator.HostedServices
                 category = await guild.CreateCategoryChannelAsync(TranslationConstants.CategoryName);
                 _channelCreatedWaiter.WaitOne();
             }
-            
+
             var tmpCat = guild.GetCategoryChannel(category.Id);
             var tmpChans = tmpCat.Channels;
 
@@ -70,7 +109,7 @@ namespace ModixTranslator.HostedServices
             var messages = messageBatch.SelectMany(m => m.ToList()).ToList();
 
             var supportedMessage = messages.FirstOrDefault(a => a.Content.Contains("Supported Languages:"));
-            if(supportedMessage == null)
+            if (supportedMessage == null)
             {
                 var messageBuilder = new StringBuilder();
                 var langs = await _translationService.GetSupportedLanguages();
@@ -78,7 +117,7 @@ namespace ModixTranslator.HostedServices
                 messageBuilder.Append("```\n");
                 messageBuilder.Append($"{"Language",-9}Name\n");
 
-                foreach(var lang in langs.Translation.OrderBy(a => a.Key))
+                foreach (var lang in langs.Translation.OrderBy(a => a.Key))
                 {
                     messageBuilder.Append($"{lang.Key,-9}{lang.Value.NativeName}\n");
                 }
@@ -88,13 +127,13 @@ namespace ModixTranslator.HostedServices
             }
 
             var commandMessage = messages.FirstOrDefault(a => a.Content.Contains("Usage:"));
-            if(commandMessage == null)
+            if (commandMessage == null)
             {
                 await channel.SendMessageAsync($"{Format.Bold("Usage:")} {Format.Code("??translate create <lang>")}");
             }
 
             var exampleMessage = messages.FirstOrDefault(a => a.Content.Contains("Example:"));
-            if(exampleMessage == null)
+            if (exampleMessage == null)
             {
                 await channel.SendMessageAsync($"{Format.Bold("Example:")} {Format.Code("??translate create es")}");
             }

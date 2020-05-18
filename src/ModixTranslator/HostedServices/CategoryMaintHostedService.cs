@@ -78,7 +78,7 @@ namespace ModixTranslator.HostedServices
                         continue;
                     }
 
-                    if ((DateTimeOffset.UtcNow - lastMessageTime).TotalMinutes >= 60)
+                    if ((DateTimeOffset.UtcNow - lastMessageTime).TotalMinutes >= TranslationConstants.IdleChannelTimeoutMinutes)
                     {
                         _logger.LogDebug($"Channel {channel.Name} is idle, deleting.");
 
