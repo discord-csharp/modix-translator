@@ -67,13 +67,13 @@ namespace ModixTranslator.HostedServices
             await fromLangChannel.ModifyAsync(async p =>
             {
                 p.Topic = await _translation.GetTranslation(guildLang, lang,
-                    $"Responses will be translated to {guildLang} and posted in this channel's pair") + $"<#{toLangChannel.Id}>";
+                    $"Responses will be translated to {guildLang} and posted in this channel's pair {toLangChannel.Mention}");
             });
 
             await toLangChannel.ModifyAsync(p =>
             {
                 p.Topic =
-                    $"Responses will be translated to {lang} and posted in this channel's pair <#{fromLangChannel.Id}>";
+                    $"Responses will be translated to {lang} and posted in this channel's pair {fromLangChannel.Mention}";
             });
             
             pair = new ChannelPair
