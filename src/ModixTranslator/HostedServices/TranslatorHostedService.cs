@@ -54,28 +54,15 @@ namespace ModixTranslator.HostedServices
             var fromLangName = $"{safeLang}-to-{safeGuildLang}";
             var toLangName = $"{safeGuildLang}-to-{safeLang}";
 
-            var fromLangChannel = await guild.CreateTextChannelAsync(fromLangName, p =>
-            {
-                p.CategoryId = category.Id;
-            });
+            var fromLangChannel = await guild.CreateTextChannelAsync(fromLangName, p => p.CategoryId = category.Id);
+            var toLangChannel = await guild.CreateTextChannelAsync(toLangName, p => p.CategoryId = category.Id);
 
-            var toLangChannel = await guild.CreateTextChannelAsync(toLangName, p =>
-            {
-                p.CategoryId = category.Id;
-            });
+            var localizedTopic = await _translation.GetTranslation(guildLang, lang, $"Responses will be translated to {guildLang} and posted in this channel's pair {toLangChannel.Mention}");
+            await fromLangChannel.ModifyAsync(p => p.Topic = localizedTopic);
 
-            await fromLangChannel.ModifyAsync(async p =>
-            {
-                p.Topic = await _translation.GetTranslation(guildLang, lang,
-                    $"Responses will be translated to {guildLang} and posted in this channel's pair {toLangChannel.Mention}");
-            });
+            var unlocalizedTopic = $"Responses will be translated to {lang} and posted in this channel's pair {fromLangChannel.Mention}";
+            await toLangChannel.ModifyAsync(p => p.Topic = unlocalizedTopic);
 
-            await toLangChannel.ModifyAsync(p =>
-            {
-                p.Topic =
-                    $"Responses will be translated to {lang} and posted in this channel's pair {fromLangChannel.Mention}";
-            });
-            
             pair = new ChannelPair
             {
                 TranslationChannel = fromLangChannel,
@@ -173,7 +160,7 @@ namespace ModixTranslator.HostedServices
             _bot.ExecuteHandlerAsyncronously<(SocketCategoryChannel category, string original, string translated)>(
                 handler: async discord =>
                 {
-                    if(pair?.TranslationChannel == null || pair?.StandardLangChanel == null)
+                    if (pair?.TranslationChannel == null || pair?.StandardLangChanel == null)
                     {
                         throw new InvalidOperationException("Invalid channel pair");
                     }
@@ -248,7 +235,7 @@ namespace ModixTranslator.HostedServices
             string foundLang = string.Empty;
             foreach (var pair in _channelPairs)
             {
-                if(pair.Value?.TranslationChannel == null || pair.Value?.StandardLangChanel == null)
+                if (pair.Value?.TranslationChannel == null || pair.Value?.StandardLangChanel == null)
                 {
                     _logger.LogWarning("invalid channel pair detected");
                     continue;
