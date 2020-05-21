@@ -53,24 +53,33 @@ namespace ModixTranslator.HostedServices
 
             var fromLangName = $"{safeLang}-to-{safeGuildLang}";
             var toLangName = $"{safeGuildLang}-to-{safeLang}";
-            var fromLangTopic = await _translation.GetTranslation(guildLang, lang, $"Responses will be translated to {guildLang} and posted in this channel's pair `#{fromLangName}`");
-            var toLangTopic = $"Responses will be translated to {lang} and posted in this channel's pair `#{toLangName}`";
 
             var fromLangChannel = await guild.CreateTextChannelAsync(fromLangName, p =>
             {
                 p.CategoryId = category.Id;
-                p.Topic = fromLangTopic;
             });
 
-            var ToLangChannel = await guild.CreateTextChannelAsync(toLangName, p =>
+            var toLangChannel = await guild.CreateTextChannelAsync(toLangName, p =>
             {
                 p.CategoryId = category.Id;
-                p.Topic = toLangTopic;
             });
+
+            await fromLangChannel.ModifyAsync(async p =>
+            {
+                p.Topic = await _translation.GetTranslation(guildLang, lang,
+                    $"Responses will be translated to {guildLang} and posted in this channel's pair {toLangChannel.Mention}");
+            });
+
+            await toLangChannel.ModifyAsync(p =>
+            {
+                p.Topic =
+                    $"Responses will be translated to {lang} and posted in this channel's pair {fromLangChannel.Mention}";
+            });
+            
             pair = new ChannelPair
             {
                 TranslationChannel = fromLangChannel,
-                StandardLangChanel = ToLangChannel
+                StandardLangChanel = toLangChannel
             };
 
             if (!_channelPairs.TryAdd(safeLang, pair))
