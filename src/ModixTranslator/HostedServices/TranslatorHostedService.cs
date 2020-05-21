@@ -230,8 +230,7 @@ namespace ModixTranslator.HostedServices
                 relayText += $" {string.Join(" ", message.Attachments.Select(a => a.Url))}";
             }
 
-
-            await targetChannel.SendMessageAsync($"{username}: {relayText}");
+            await targetChannel.SendMessageAsync($"{Format.Bold(username)}: {relayText}");
             return relayText;
         }
 

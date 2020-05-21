@@ -1,6 +1,6 @@
 {
   "profiles": {
-    "TranslatorBot9000": {
+    "ModixTranslator": {
       "commandName": "Project",
       "environmentVariables": {
         "BOT_Environment": "Development"
