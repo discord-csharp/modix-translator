@@ -4,6 +4,7 @@ using Discord.WebSocket;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -53,7 +54,15 @@ namespace ModixTranslator.HostedServices
             }
 
             int argPos = 0;
+
             if (!userMessage.HasStringPrefix("??", ref argPos))
+            {
+                return Task.CompletedTask;
+            }
+
+            // If the message only contains '?', i.e. ???????, we don't want to
+            // forward this as a command
+            if(userMessage.Content.All(character => character == '?'))
             {
                 return Task.CompletedTask;
             }
