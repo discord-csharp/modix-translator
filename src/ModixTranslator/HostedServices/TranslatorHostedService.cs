@@ -157,9 +157,13 @@ namespace ModixTranslator.HostedServices
 
             _logger.LogDebug("Starting translation of message");
 
-            _bot.ExecuteHandlerAsyncronously<(SocketCategoryChannel category, string original, string translated)>(
+            _bot.ExecuteHandlerAsyncronously<(SocketCategoryChannel category, Translation? guildLangTranslation, Translation?
+                langTranslation)>(
                 handler: async discord =>
                 {
+                    Translation? guildLangTranslation = null;
+                    Translation? langTranslation = null;
+
                     if (pair?.TranslationChannel == null || pair?.StandardLangChanel == null)
                     {
                         throw new InvalidOperationException("Invalid channel pair");
@@ -169,17 +173,24 @@ namespace ModixTranslator.HostedServices
                     if (messageChannel.Id == pair.StandardLangChanel.Id)
                     {
                         relayText = await SendMessageToPartner(message, $"{guildUser.Nickname ?? guildUser.Username}", pair.TranslationChannel, guildLang, lang);
+
+                        guildLangTranslation = new Translation(message.Content, guildLang);
+                        langTranslation = new Translation(relayText, lang);
                     }
                     else if (messageChannel.Id == pair.TranslationChannel.Id)
                     {
                         relayText = await SendMessageToPartner(message, $"{guildUser.Nickname ?? guildUser.Username}", pair.StandardLangChanel, lang, guildLang);
+
+
+                        guildLangTranslation = new Translation(relayText, guildLang);
+                        langTranslation = new Translation(message.Content, lang);
                     }
 
-                    return (categoryChannel, message.Content, relayText);
+                    return (categoryChannel, guildLangTranslation, langTranslation);
                 },
                 callback: async result =>
                 {
-                    if (result.category == null || string.IsNullOrWhiteSpace(result.original) || string.IsNullOrWhiteSpace(result.translated))
+                    if (result.category == null || string.IsNullOrWhiteSpace(result.guildLangTranslation?.Text) || string.IsNullOrWhiteSpace(result.langTranslation?.Text))
                     {
                         return;
                     }
@@ -194,13 +205,15 @@ namespace ModixTranslator.HostedServices
                     _logger.LogDebug("Sending messages to the history channel");
 
                     var nickname = guildUser.Nickname ?? guildUser.Username;
+                    var avatar = guildUser.GetAvatarUrl() ?? guildUser.GetDefaultAvatarUrl();
 
                     var embed = new EmbedBuilder()
-                        .WithAuthor(nickname)
-                        .WithDescription(result.original)
+                        .WithAuthor(nickname, avatar)
+                        .AddField(result.guildLangTranslation.Language, result.guildLangTranslation.Text, true)
+                        .AddField(result.langTranslation.Language, result.langTranslation.Text, true)
                         .Build();
 
-                    await historyChannel.SendMessageAsync(result.translated, embed: embed);
+                    await historyChannel.SendMessageAsync(embed: embed);
 
                     _logger.LogDebug("Completed translating messages");
                 });
