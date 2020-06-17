@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using ModixTranslator.Extensions;
 
 namespace ModixTranslator.HostedServices
 {
@@ -157,9 +158,12 @@ namespace ModixTranslator.HostedServices
 
             _logger.LogDebug("Starting translation of message");
 
-            _bot.ExecuteHandlerAsyncronously<(SocketCategoryChannel category, string original, string translated)>(
+            _bot.ExecuteHandlerAsyncronously<(SocketCategoryChannel category, Translation? guildLangTranslation, Translation?langTranslation)>(
                 handler: async discord =>
                 {
+                    Translation? guildLangTranslation = null;
+                    Translation? langTranslation = null;
+
                     if (pair?.TranslationChannel == null || pair?.StandardLangChanel == null)
                     {
                         throw new InvalidOperationException("Invalid channel pair");
@@ -169,22 +173,30 @@ namespace ModixTranslator.HostedServices
                     if (messageChannel.Id == pair.StandardLangChanel.Id)
                     {
                         relayText = await SendMessageToPartner(message, $"{guildUser.Nickname ?? guildUser.Username}", pair.TranslationChannel, guildLang, lang);
+
+                        guildLangTranslation = new Translation(message.Content, $"{guildLang} (Original)");
+                        langTranslation = new Translation(relayText, $"{lang} (Translated)");
                     }
                     else if (messageChannel.Id == pair.TranslationChannel.Id)
                     {
                         relayText = await SendMessageToPartner(message, $"{guildUser.Nickname ?? guildUser.Username}", pair.StandardLangChanel, lang, guildLang);
+
+
+                        guildLangTranslation = new Translation(relayText, $"{guildLang} (Translated)");
+                        langTranslation = new Translation(message.Content, $"{lang} (Original)");
                     }
 
-                    return (categoryChannel, message.Content, relayText);
+                    return (categoryChannel, guildLangTranslation, langTranslation);
                 },
                 callback: async result =>
                 {
-                    if (result.category == null || string.IsNullOrWhiteSpace(result.original) || string.IsNullOrWhiteSpace(result.translated))
+                    var (category, guildTranslation, translation) = result;
+                    if (category == null || string.IsNullOrWhiteSpace(guildTranslation?.Text) || string.IsNullOrWhiteSpace(translation?.Text))
                     {
                         return;
                     }
 
-                    var historyChannel = result.category.Channels.OfType<SocketTextChannel>()
+                    var historyChannel = category.Channels.OfType<SocketTextChannel>()
                         .SingleOrDefault(a => a.Name == TranslationConstants.HistoryChannelName);
                     if (historyChannel == null)
                     {
@@ -194,13 +206,33 @@ namespace ModixTranslator.HostedServices
                     _logger.LogDebug("Sending messages to the history channel");
 
                     var nickname = guildUser.Nickname ?? guildUser.Username;
+                    var avatar = guildUser.GetAvatarUrl() ?? guildUser.GetDefaultAvatarUrl();
 
                     var embed = new EmbedBuilder()
-                        .WithAuthor(nickname)
-                        .WithDescription(result.original)
-                        .Build();
+                        .WithAuthor(nickname, avatar);
 
-                    await historyChannel.SendMessageAsync(result.translated, embed: embed);
+                    // Translations still look better side to side, unless there is a code block.
+                    // In case any one of them exceeds 1024 limit, it will be split into chunks
+                    // and all of them will be inlined.
+
+                    const int chunkSize = 1024;
+                    var lengthIsBrief = guildTranslation.Text.Length < chunkSize && translation.Text.Length < chunkSize;
+                    var noCodeBlocks = !(guildTranslation.Text.Contains("```") || translation.Text.Contains("```"));
+
+                    if (lengthIsBrief && noCodeBlocks)
+                    {
+                        embed
+                            .AddField(guildTranslation.Language, guildTranslation.Text, true)
+                            .AddField(translation.Language, translation.Text, true);
+                    }
+                    else
+                    {
+                        embed
+                            .AddChunks(guildTranslation.Text.ChunkUpTo(chunkSize), guildTranslation.Language)
+                            .AddChunks(translation.Text.ChunkUpTo(chunkSize), translation.Language);
+                    }
+
+                    await historyChannel.SendMessageAsync(embed: embed.Build());
 
                     _logger.LogDebug("Completed translating messages");
                 });
