@@ -52,7 +52,7 @@ namespace ModixTranslator.Commands
             }
 
             var translation = await _translator.GetTranslation(null, to, text);
-            await Context.Channel.SendMessageAsync(translation);
+            await Context.Channel.SendMessageAsync(translation.Translated.Text);
         }
     }
 }

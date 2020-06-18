@@ -10,6 +10,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ModixTranslator.Extensions;
+using static ModixTranslator.Models.Translator.Translation.TranslationType;
 
 namespace ModixTranslator.HostedServices
 {
@@ -59,7 +60,7 @@ namespace ModixTranslator.HostedServices
             var toLangChannel = await guild.CreateTextChannelAsync(toLangName, p => p.CategoryId = category.Id);
 
             var localizedTopic = await _translation.GetTranslation(guildLang, lang, $"Responses will be translated to {guildLang} and posted in this channel's pair {toLangChannel.Mention}");
-            await fromLangChannel.ModifyAsync(p => p.Topic = localizedTopic);
+            await fromLangChannel.ModifyAsync(p => p.Topic = localizedTopic.Translated.Text);
 
             var unlocalizedTopic = $"Responses will be translated to {lang} and posted in this channel's pair {fromLangChannel.Mention}";
             await toLangChannel.ModifyAsync(p => p.Topic = unlocalizedTopic);
@@ -158,40 +159,30 @@ namespace ModixTranslator.HostedServices
 
             _logger.LogDebug("Starting translation of message");
 
-            _bot.ExecuteHandlerAsyncronously<(SocketCategoryChannel category, Translation? guildLangTranslation, Translation?langTranslation)>(
+            _bot.ExecuteHandlerAsyncronously<(SocketCategoryChannel category, Translation? translation)>(
                 handler: async discord =>
                 {
-                    Translation? guildLangTranslation = null;
-                    Translation? langTranslation = null;
-
                     if (pair?.TranslationChannel == null || pair?.StandardLangChanel == null)
                     {
                         throw new InvalidOperationException("Invalid channel pair");
                     }
 
-                    string relayText = string.Empty;
+                    Translation? translation = null;
                     if (messageChannel.Id == pair.StandardLangChanel.Id)
                     {
-                        relayText = await SendMessageToPartner(message, $"{guildUser.Nickname ?? guildUser.Username}", pair.TranslationChannel, guildLang, lang);
-
-                        guildLangTranslation = new Translation(message.Content, $"{guildLang} (Original)");
-                        langTranslation = new Translation(relayText, $"{lang} (Translated)");
+                        translation = await SendMessageToPartner(message, $"{guildUser.Nickname ?? guildUser.Username}", pair.TranslationChannel, guildLang, lang, Foreign);
                     }
                     else if (messageChannel.Id == pair.TranslationChannel.Id)
                     {
-                        relayText = await SendMessageToPartner(message, $"{guildUser.Nickname ?? guildUser.Username}", pair.StandardLangChanel, lang, guildLang);
-
-
-                        guildLangTranslation = new Translation(relayText, $"{guildLang} (Translated)");
-                        langTranslation = new Translation(message.Content, $"{lang} (Original)");
+                        translation = await SendMessageToPartner(message, $"{guildUser.Nickname ?? guildUser.Username}", pair.StandardLangChanel, lang, guildLang, GuildLocale);
                     }
 
-                    return (categoryChannel, guildLangTranslation, langTranslation);
+                    return (categoryChannel, translation);
                 },
                 callback: async result =>
                 {
-                    var (category, guildTranslation, translation) = result;
-                    if (category == null || string.IsNullOrWhiteSpace(guildTranslation?.Text) || string.IsNullOrWhiteSpace(translation?.Text))
+                    var (category, translation) = result;
+                    if (category == null || string.IsNullOrWhiteSpace(translation?.GuildLocal.Text) || string.IsNullOrWhiteSpace(translation?.Foreign.Text))
                     {
                         return;
                     }
@@ -209,27 +200,45 @@ namespace ModixTranslator.HostedServices
                     var avatar = guildUser.GetAvatarUrl() ?? guildUser.GetDefaultAvatarUrl();
 
                     var embed = new EmbedBuilder()
-                        .WithAuthor(nickname, avatar);
+                        .WithAuthor(nickname, avatar, message.GetJumpUrl());
 
-                    // Translations still look better side to side, unless there is a code block.
+                    // Translations still look better side to side when brief.
                     // In case any one of them exceeds 1024 limit, it will be split into chunks
                     // and all of them will be inlined.
 
-                    const int chunkSize = 1024;
-                    var lengthIsBrief = guildTranslation.Text.Length < chunkSize && translation.Text.Length < chunkSize;
-                    var noCodeBlocks = !(guildTranslation.Text.Contains("```") || translation.Text.Contains("```"));
+                    var guildLocal = translation.GuildLocal;
+                    var foreign = translation.Foreign;
 
-                    if (lengthIsBrief && noCodeBlocks)
+                    const int chunkSize = 1024;
+                    var lengthIsBrief = guildLocal.Text.Length < chunkSize && foreign.Text.Length < chunkSize;
+
+                    if (lengthIsBrief)
                     {
                         embed
-                            .AddField(guildTranslation.Language, guildTranslation.Text, true)
-                            .AddField(translation.Language, translation.Text, true);
+                            .AddField(guildLocal.Language, guildLocal.Text, true)
+                            .AddField(foreign.Language, foreign.Text, true);
                     }
                     else
                     {
                         embed
-                            .AddChunks(guildTranslation.Text.ChunkUpTo(chunkSize), guildTranslation.Language)
-                            .AddChunks(translation.Text.ChunkUpTo(chunkSize), translation.Language);
+                            .AddChunks(guildLocal.Text.ChunkUpTo(chunkSize), guildLocal.Language)
+                            .AddChunks(foreign.Text.ChunkUpTo(chunkSize), foreign.Language);
+                    }
+
+                    if (translation.CodeBlocks.Any())
+                    {
+                        // Code blocks without any newline or space in between each other
+                        // are more compactly spaced
+                        embed.WithDescription(string.Join("", translation.CodeBlocks));
+                    }
+
+                    if (message.Attachments.Any())
+                    {
+                        embed.WithImageUrl(message.Attachments.First().Url);
+
+                        var others = message.Attachments.Skip(1).Select(x => x.Url).ToArray();
+                        if (others.Length > 0)
+                            embed.AddField("Attachments", string.Join("\n", others));
                     }
 
                     await historyChannel.SendMessageAsync(embed: embed.Build());
@@ -240,26 +249,22 @@ namespace ModixTranslator.HostedServices
             return Task.CompletedTask;
         }
 
-        private async Task<string> SendMessageToPartner(SocketMessage message, string username, ITextChannel targetChannel, string from, string to)
+        private async Task<Translation?> SendMessageToPartner(SocketMessage message, string username, ITextChannel targetChannel, string from, string to, Translation.TranslationType type)
         {
             var guildLang = _serverConfig.GetLanguageForGuild(targetChannel.Guild.Id);
             var safeGuildLang = GetSafeLangString(guildLang);
             var isStandardLang = targetChannel.IsStandardLangChannel(safeGuildLang);
 
             _logger.LogDebug($"Message received from {from} channel '{message.Channel.Name}', sending to {targetChannel.Name}");
-            string relayText = string.Empty;
-            if (!string.IsNullOrWhiteSpace(message.Content))
-            {
-                relayText = await _translation.GetTranslation(from, to, message.Content);
-            }
 
-            if (message.Attachments.Count != 0)
-            {
-                relayText += $" {string.Join(" ", message.Attachments.Select(a => a.Url))}";
-            }
+            if (string.IsNullOrEmpty(message.Content))
+                return null;
 
-            await targetChannel.SendMessageAsync($"{Format.Bold(username)}: {relayText}");
-            return relayText;
+            var translation = await _translation.GetTranslation(from, to, message.Content);
+            translation.Type = type;
+
+            await targetChannel.SendMessageAsync($"{Format.Bold(username)}: {translation}");
+            return translation;
         }
 
         private Task RemoveChannelFromMap(SocketChannel channel)

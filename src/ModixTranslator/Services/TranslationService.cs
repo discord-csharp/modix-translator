@@ -11,6 +11,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using ModixTranslator.Models.Translator;
 
 namespace ModixTranslator.Behaviors
 {
@@ -24,9 +25,11 @@ namespace ModixTranslator.Behaviors
         {
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         };
-        //                                     matches `text`, ```text```, or <mention/emoji>
-        private readonly Regex pattern = new Regex("`.*?`|```.*?```|<.*?>", RegexOptions.Singleline | RegexOptions.Compiled);
-        private readonly Regex keyScrubber = new Regex("\\D", RegexOptions.Compiled);
+
+        //                                     matches `text` or <mention/emoji>
+        private readonly Regex inlinePattern = new Regex(@"`.*?`|<(@[!&]|#|a?:.+?:)[0-9]{17,19}>", RegexOptions.Singleline | RegexOptions.Compiled);
+        private readonly Regex codeBlockPattern = new Regex("```.*?```", RegexOptions.Singleline | RegexOptions.Compiled);
+        private readonly Regex keyScrubber = new Regex(@"\D", RegexOptions.Compiled);
 
         public TranslationService(ILogger<TranslationService> logger, IHttpClientFactory httpClientFactory, ITranslationTokenProvider tokenProvider)
         {
@@ -56,13 +59,18 @@ namespace ModixTranslator.Behaviors
             return response!;
         }
 
-    public async Task<string> GetTranslation(string? from, string to, string text)
+    public async Task<Translation> GetTranslation(string? from, string to, string text)
     {
         _logger.LogDebug($"Translating {text} from {from ?? "auto"} to {to}");
-        string message;
+
+        string translated;
+
+        var strippedText = text;
+        var codeBlocks = StripCodeBlocksFromText(ref strippedText);
+
         try
         {
-            var (strippedText, codeBlocks) = StripBlocksFromText(text);
+            var inlined = StripInlinedFromText(ref strippedText);
             var client = _httpClientFactory.CreateClient("translationClient");
             var token = _tokenProvider.Token;
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -80,7 +88,7 @@ namespace ModixTranslator.Behaviors
 
             if (!response.IsSuccessStatusCode)
             {
-                message = text;
+                translated = text;
                 var body = await response.Content!.ReadAsStringAsync();
                 throw new InvalidOperationException($"Unable to translate. Service returned {response.StatusCode}: {body}");
             }
@@ -100,33 +108,49 @@ namespace ModixTranslator.Behaviors
                 throw new InvalidOperationException("No translations were returned");
             }
 
-            message = AddCodeblocksToString(translation.Text ?? strippedText, codeBlocks);
+            // Use the auto-detected language if it's present
+            from ??= translationResponse.FirstOrDefault()?.DetectedLanguage?.Language;
+            translated = AddInlinedToString(translation.Text ?? strippedText, inlined);
         }
         catch (Exception ex)
         {
             _logger.LogCritical(ex, $"Unable to translate message: {ex.Message}");
-            message = text;
+            translated = text;
         }
 
         _logger.LogDebug("Finished translating");
-        return message;
+        return new Translation((from ?? "unknown", text), (to, translated), codeBlocks);
     }
 
-    private (string strippedText, Dictionary<string, string> codeBlocks) StripBlocksFromText(string text)
+    private IEnumerable<string> StripCodeBlocksFromText(ref string text)
+    {
+        var codeBlocks = new List<string>();
+
+        text = codeBlockPattern.Replace(text, str =>
+        {
+            codeBlocks.Add(str.Value);
+            _logger.LogDebug($"Separating code block {str}");
+            return string.Empty;
+        });
+
+        return codeBlocks;
+    }
+
+    private Dictionary<string, string>  StripInlinedFromText(ref string text)
     {
         var replacements = new Dictionary<string, string>();
 
-        var replacedText = pattern.Replace(text, str =>
+        text = inlinePattern.Replace(text, str =>
         {
             var guid = $"{{{keyScrubber.Replace($"{Guid.NewGuid()}", string.Empty)}}}";
             _logger.LogDebug($"Replacing {str} with {guid}");
             replacements[guid] = str.Value;
             return guid;
         });
-        return (replacedText, replacements);
+        return replacements;
     }
 
-    private string AddCodeblocksToString(string text, Dictionary<string, string> replacements)
+    private string AddInlinedToString(string text, Dictionary<string, string> replacements)
     {
         var sb = new StringBuilder(text);
         foreach (var replacement in replacements)
