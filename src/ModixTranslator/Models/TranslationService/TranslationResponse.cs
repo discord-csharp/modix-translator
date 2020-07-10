@@ -8,5 +8,7 @@ namespace ModixTranslator.Models.TranslationService
         [JsonPropertyName("translations")]
         public List<TranslatedText>? Translations { get; set; }
 
+        [JsonPropertyName("detectedLanguage")]
+        public DetectedLanguage? DetectedLanguage { get; set; }
     }
 }
