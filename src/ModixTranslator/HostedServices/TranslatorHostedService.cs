@@ -263,7 +263,7 @@ namespace ModixTranslator.HostedServices
             var translation = await _translation.GetTranslation(from, to, message.Content);
             translation.Type = type;
 
-            await targetChannel.SendMessageAsync($"{Format.Bold(username)}: {translation}");
+            await targetChannel.SendMessageAsync($"{Format.Bold(username)}: {translation.Translated.Text}");
             return translation;
         }
 
