@@ -1,7 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-
-namespace ModixTranslator.Models.Translator
+﻿namespace ModixTranslator.Models.Translator
 {
     public class Translation
     {
@@ -13,12 +10,10 @@ namespace ModixTranslator.Models.Translator
 
         private readonly LocalText _original;
 
-        public Translation((string lang, string text) from, (string lang, string text) to,
-            IEnumerable<string>? codeBlocks = null)
+        public Translation((string lang, string text) from, (string lang, string text) to)
         {
             _original = new LocalText(from.lang, from.text);
             Translated = new LocalText(to.lang, to.text);
-            CodeBlocks = codeBlocks ?? Enumerable.Empty<string>();
         }
 
         public LocalText GuildLocal => Type == TranslationType.GuildLocale ? Translated : _original;
@@ -28,7 +23,5 @@ namespace ModixTranslator.Models.Translator
         public LocalText Translated { get; }
 
         public TranslationType Type { get; set; }
-
-        public IEnumerable<string> CodeBlocks { get; set; }
     }
 }

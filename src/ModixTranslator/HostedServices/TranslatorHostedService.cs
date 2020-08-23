@@ -210,9 +210,12 @@ namespace ModixTranslator.HostedServices
                     var foreign = translation.Foreign;
 
                     const int chunkSize = 1024;
-                    var lengthIsBrief = guildLocal.Text.Length < chunkSize && foreign.Text.Length < chunkSize;
+                    var lengthIsBrief = 
+                        guildLocal.Text.Length < chunkSize && 
+                        foreign.Text.Length < chunkSize;
+                    var hasCodeBlocks = TranslationService.CodeBlockPattern.IsMatch(translation.Translated.Text);
 
-                    if (lengthIsBrief)
+                    if (lengthIsBrief && !hasCodeBlocks)
                     {
                         embed
                             .AddField(guildLocal.Language, guildLocal.Text, true)
@@ -223,13 +226,6 @@ namespace ModixTranslator.HostedServices
                         embed
                             .AddChunks(guildLocal.Text.ChunkUpTo(chunkSize), guildLocal.Language)
                             .AddChunks(foreign.Text.ChunkUpTo(chunkSize), foreign.Language);
-                    }
-
-                    if (translation.CodeBlocks.Any())
-                    {
-                        // Code blocks without any newline or space in between each other
-                        // are more compactly spaced
-                        embed.WithDescription(string.Join("", translation.CodeBlocks));
                     }
 
                     if (message.Attachments.Any())
