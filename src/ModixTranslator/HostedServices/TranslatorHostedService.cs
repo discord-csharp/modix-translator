@@ -16,7 +16,6 @@ namespace ModixTranslator.HostedServices
 {
     public class TranslatorHostedService : ITranslatorHostedService
     {
-        private const int ChunkSize = 1024;
         private readonly ILogger<TranslatorHostedService> _logger;
         private readonly ITranslationService _translation;
         private readonly IBotService _bot;
@@ -210,9 +209,10 @@ namespace ModixTranslator.HostedServices
                     var guildLocal = translation.GuildLocal;
                     var foreign = translation.Foreign;
 
+                    const int fieldLength = 1024;
                     var lengthIsBrief = 
-                        guildLocal.Text.Length < ChunkSize && 
-                        foreign.Text.Length < ChunkSize;
+                        guildLocal.Text.Length < fieldLength && 
+                        foreign.Text.Length < fieldLength;
                     var hasCodeBlocks = TranslationService.CodeBlockPattern.IsMatch(translation.Translated.Text);
 
                     if (lengthIsBrief && !hasCodeBlocks)
@@ -224,8 +224,8 @@ namespace ModixTranslator.HostedServices
                     else
                     {
                         embed
-                            .AddChunks(guildLocal.Text.ChunkUpTo(ChunkSize), guildLocal.Language)
-                            .AddChunks(foreign.Text.ChunkUpTo(ChunkSize), foreign.Language);
+                            .AddChunks(guildLocal.Text.ChunkUpTo(fieldLength), guildLocal.Language)
+                            .AddChunks(foreign.Text.ChunkUpTo(fieldLength), foreign.Language);
                     }
 
                     if (message.Attachments.Any())
@@ -259,7 +259,7 @@ namespace ModixTranslator.HostedServices
             var translation = await _translation.GetTranslation(from, to, message.Content);
             translation.Type = type;
 
-            foreach (var chunk in $"{Format.Bold(username)}: {translation.Translated.Text}".ChunkUpTo(ChunkSize))
+            foreach (var chunk in $"{Format.Bold(username)}: {translation.Translated.Text}".ChunkUpTo(2000))
             {
                 await targetChannel.SendMessageAsync(chunk);
             }
