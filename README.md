@@ -8,7 +8,7 @@ For example, if you enter the command `??translate create de`, two channels will
 ### Commands:
 - `??translate <Language> <Phrase>`
 
-Returns the translation of the english `<Phrase>` into `<Language>`
+Returns the translation of the `<Phrase>` into `<Language>`. The language of `<Phrase>` is auto-detected.
 
 - `??translate create <Language>`
 
