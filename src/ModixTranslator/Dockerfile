@@ -1,7 +1,7 @@
-FROM mcr.microsoft.com/dotnet/core/runtime:5.0-buster-slim AS base
+FROM mcr.microsoft.com/dotnet/runtime:5.0-buster-slim AS base
 WORKDIR /app
 
-FROM mcr.microsoft.com/dotnet/core/sdk:5.0-buster AS build
+FROM mcr.microsoft.com/dotnet/sdk:5.0-buster-slim AS build
 WORKDIR /src
 COPY ["ModixTranslator/ModixTranslator.csproj", "ModixTranslator/"]
 COPY [".nuget/nuget.config", ".nuget/"]
@@ -14,7 +14,6 @@ FROM build AS publish
 RUN dotnet publish "ModixTranslator.csproj" -c Release -o /app/publish
 
 FROM base AS final
-RUN apt-get update && apt-get install -y ca-certificates
 WORKDIR /app
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "ModixTranslator.dll"]
