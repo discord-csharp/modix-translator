@@ -110,6 +110,7 @@ namespace ModixTranslator.HostedServices
 
         public ValueTask DisposeAsync()
         {
+            GC.SuppressFinalize(this);
             DiscordClient?.Dispose();
 
             return new ValueTask();

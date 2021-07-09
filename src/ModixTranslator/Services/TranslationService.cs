@@ -22,12 +22,12 @@ namespace ModixTranslator.Behaviors
         private readonly ITranslationTokenProvider _tokenProvider;
 
         //                                     matches `text` or <mention/emoji>
-        private readonly Regex inlinePattern = new Regex(@"`.*?`|<(@[!&]|#|a?:.+?:)[0-9]{17,19}>",
+        private readonly Regex inlinePattern = new(@"`.*?`|<(@[!&]|#|a?:.+?:)[0-9]{17,19}>",
             RegexOptions.Singleline | RegexOptions.Compiled);
 
-        private readonly Regex keyScrubber = new Regex(@"\D", RegexOptions.Compiled);
+        private readonly Regex keyScrubber = new(@"\D", RegexOptions.Compiled);
 
-        private readonly JsonSerializerOptions options = new JsonSerializerOptions
+        private readonly JsonSerializerOptions options = new()
         {
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         };
@@ -139,7 +139,7 @@ namespace ModixTranslator.Behaviors
             return replacements;
         }
 
-        private string UnstripText(string text, params Dictionary<string, string>[] replacements)
+        private static string UnstripText(string text, params Dictionary<string, string>[] replacements)
         {
             var sb = new StringBuilder(text);
             foreach (var replacement in replacements)

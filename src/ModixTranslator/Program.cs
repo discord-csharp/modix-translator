@@ -22,6 +22,7 @@ namespace ModixTranslator
                 })
                 .ConfigureAppConfiguration((context, config) =>
                 {
+                    config.AddKeyPerFile("/run/secrets", true);
                     if(context.HostingEnvironment.IsDevelopment())
                     {
                         config.AddUserSecrets("4d9d6bca-ddc0-45ee-a876-74d5a6b1d83c");
@@ -35,13 +36,13 @@ namespace ModixTranslator
                         builder.AddDebug();
                     }
 
-                    builder.AddConsole(o =>
+                    builder.AddSimpleConsole(o =>
                     {
                         if (context.HostingEnvironment.IsProduction())
                         {
-                            o.DisableColors = true;
+                            o.ColorBehavior = LoggerColorBehavior.Disabled;
                         }
-                        o.Format = ConsoleLoggerFormat.Systemd;
+                        o.SingleLine = true;
                         o.TimestampFormat = "o";
 
                     });

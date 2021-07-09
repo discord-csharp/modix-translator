@@ -20,7 +20,7 @@ namespace ModixTranslator.HostedServices
         private readonly ITranslationService _translation;
         private readonly IBotService _bot;
         private readonly IServerConfigurationService _serverConfig;
-        private readonly ConcurrentDictionary<string, ChannelPair> _channelPairs = new ConcurrentDictionary<string, ChannelPair>();
+        private readonly ConcurrentDictionary<string, ChannelPair> _channelPairs = new();
 
         public TranslatorHostedService(ILogger<TranslatorHostedService> logger, ITranslationService translationService, IBotService bot, IServerConfigurationService serverConfig)
         {
@@ -89,7 +89,7 @@ namespace ModixTranslator.HostedServices
 
         private Task MessageUpdated(Cacheable<IMessage, ulong> lastMessage, SocketMessage newMessage, ISocketMessageChannel channel)
         {
-            if (!(newMessage.Channel is SocketTextChannel messageChannel))
+            if (newMessage.Channel is not SocketTextChannel messageChannel)
             {
                 return Task.CompletedTask;
             }
@@ -115,17 +115,17 @@ namespace ModixTranslator.HostedServices
                 return Task.CompletedTask;
             }
 
-            if (!(message.Author is SocketGuildUser guildUser))
+            if (message.Author is not SocketGuildUser guildUser)
             {
                 return Task.CompletedTask;
             }
 
-            if (!(message.Channel is SocketTextChannel messageChannel))
+            if (message.Channel is not SocketTextChannel messageChannel)
             {
                 return Task.CompletedTask;
             }
 
-            if (!(messageChannel.Category is SocketCategoryChannel categoryChannel))
+            if (messageChannel.Category is not SocketCategoryChannel categoryChannel)
             {
                 return Task.CompletedTask;
             }

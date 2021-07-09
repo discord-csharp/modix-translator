@@ -48,7 +48,7 @@ namespace ModixTranslator.HostedServices
                 return Task.CompletedTask;
             }
 
-            if (!(message is SocketUserMessage userMessage))
+            if (message is not SocketUserMessage userMessage)
             {
                 return Task.CompletedTask;
             }
