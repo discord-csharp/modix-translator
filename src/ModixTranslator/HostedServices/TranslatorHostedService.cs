@@ -182,7 +182,7 @@ namespace ModixTranslator.HostedServices
                 callback: async result =>
                 {
                     var (category, translation) = result;
-                    if (category == null || string.IsNullOrWhiteSpace(translation?.GuildLocal.Text) || string.IsNullOrWhiteSpace(translation?.Foreign.Text))
+                    if (category == null)
                     {
                         return;
                     }
@@ -206,26 +206,29 @@ namespace ModixTranslator.HostedServices
                     // In case any one of them exceeds 1024 limit, it will be split into chunks
                     // and all of them will be inlined.
 
-                    var guildLocal = translation.GuildLocal;
-                    var foreign = translation.Foreign;
+                    var guildLocal = translation?.GuildLocal;
+                    var foreign = translation?.Foreign;
 
-                    const int fieldLength = 1024;
-                    var lengthIsBrief = 
-                        guildLocal.Text.Length < fieldLength && 
-                        foreign.Text.Length < fieldLength;
-                    var hasCodeBlocks = TranslationService.CodeBlockPattern.IsMatch(translation.Translated.Text);
+                    if (!string.IsNullOrEmpty(guildLocal?.Text) && !string.IsNullOrEmpty(foreign?.Text))
+                    {
+                        const int fieldLength = 1024;
+                        var lengthIsBrief =
+                            guildLocal.Text.Length < fieldLength &&
+                            foreign.Text.Length < fieldLength;
+                        var hasCodeBlocks = TranslationService.CodeBlockPattern.IsMatch(translation!.Translated.Text);
 
-                    if (lengthIsBrief && !hasCodeBlocks)
-                    {
-                        embed
-                            .AddField(guildLocal.Language, guildLocal.Text, true)
-                            .AddField(foreign.Language, foreign.Text, true);
-                    }
-                    else
-                    {
-                        embed
-                            .AddChunks(guildLocal.Text.ChunkUpTo(fieldLength), guildLocal.Language)
-                            .AddChunks(foreign.Text.ChunkUpTo(fieldLength), foreign.Language);
+                        if (lengthIsBrief && !hasCodeBlocks)
+                        {
+                            embed
+                                .AddField(guildLocal.Language, guildLocal.Text, true)
+                                .AddField(foreign.Language, foreign.Text, true);
+                        }
+                        else
+                        {
+                            embed
+                                .AddChunks(guildLocal.Text.ChunkUpTo(fieldLength), guildLocal.Language)
+                                .AddChunks(foreign.Text.ChunkUpTo(fieldLength), foreign.Language);
+                        }
                     }
 
                     if (message.Attachments.Any())
@@ -253,13 +256,20 @@ namespace ModixTranslator.HostedServices
 
             _logger.LogDebug($"Message received from {from} channel '{message.Channel.Name}', sending to {targetChannel.Name}");
 
-            if (string.IsNullOrEmpty(message.Content))
-                return null;
+            Translation? translation = null;
+            if (!string.IsNullOrEmpty(message.Content))
+            {
+                translation = await _translation.GetTranslation(from, to, message.Content);
+                translation.Type = type;
+            }
 
-            var translation = await _translation.GetTranslation(from, to, message.Content);
-            translation.Type = type;
+            var translatedText = translation?.Translated.Text;
+            if (message.Attachments.Count > 0)
+            {
+                translatedText += $"{(string.IsNullOrEmpty(translatedText) ? string.Empty : Environment.NewLine)}{message.Attachments.First().Url}";
+            }
 
-            foreach (var chunk in $"{Format.Bold(username)}: {translation.Translated.Text}".ChunkUpTo(2000))
+            foreach (var chunk in $"{Format.Bold(username)}: {translatedText}".ChunkUpTo(2000))
             {
                 await targetChannel.SendMessageAsync(chunk);
             }
